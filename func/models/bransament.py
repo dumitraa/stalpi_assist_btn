@@ -11,18 +11,19 @@ from qgis.core import QgsProcessingMultiStepFeedback # type: ignore
 from qgis.core import QgsProcessingParameterVectorLayer # type: ignore
 from qgis.core import QgsProcessingParameterFeatureSink # type: ignore
 from qgis.core import QgsCoordinateReferenceSystem # type: ignore
+import os
 import processing # type: ignore
 
 
 class BransamentModel(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterVectorLayer('brans_firi_desenate', 'BRANS_FIRI_desenate', defaultValue=None))
-        self.addParameter(QgsProcessingParameterVectorLayer('fb_pe_c_les', 'FB pe C LES', optional=True, types=[QgsProcessing.TypeVectorPoint], defaultValue=None))
-        self.addParameter(QgsProcessingParameterVectorLayer('linie_jt_introduse', 'LINIE_JT introduse', types=[QgsProcessing.TypeVector], defaultValue=None))
-        self.addParameter(QgsProcessingParameterFeatureSink('BRANSAMENT_XML_', 'BRANSAMENT_XML_', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, supportsAppend=True, defaultValue='TEMPORARY_OUTPUT'))
-        self.addParameter(QgsProcessingParameterFeatureSink('GRUP_MASURA_XML_', 'GRUP_MASURA_XML_', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, supportsAppend=True, defaultValue='TEMPORARY_OUTPUT'))
-        self.addParameter(QgsProcessingParameterFeatureSink('FIRIDA_XML_', 'FIRIDA_XML_', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, supportsAppend=True, defaultValue='TEMPORARY_OUTPUT'))
+        self.addParameter(QgsProcessingParameterVectorLayer('brans_firi_desenate', 'BRANS_FIRI_desenate', defaultValue="BRANS_FIRI_GRPM_JT"))
+        self.addParameter(QgsProcessingParameterVectorLayer('fb_pe_c_les', 'FB pe C LES', optional=True, types=[QgsProcessing.TypeVectorPoint], defaultValue="FB pe C LES"))
+        self.addParameter(QgsProcessingParameterVectorLayer('linie_jt_introduse', 'LINIE_JT introduse', types=[QgsProcessing.TypeVector], defaultValue="LINIE_JT"))
+        self.addParameter(QgsProcessingParameterFeatureSink('BRANSAMENT_XML_', 'BRANSAMENT_XML_', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, supportsAppend=True, defaultValue=os.path.join(self.base_dir, f"BRANSAMENT_XML_.shp")))
+        self.addParameter(QgsProcessingParameterFeatureSink('GRUP_MASURA_XML_', 'GRUP_MASURA_XML_', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, supportsAppend=True, defaultValue=os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp")))
+        self.addParameter(QgsProcessingParameterFeatureSink('FIRIDA_XML_', 'FIRIDA_XML_', type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True, supportsAppend=True, defaultValue=os.path.join(self.base_dir, f"FIRIDA_XML_.shp")))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the

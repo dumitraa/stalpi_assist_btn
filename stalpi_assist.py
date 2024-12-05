@@ -27,18 +27,31 @@ from pathlib import Path
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-from qgis.core import QgsMessageLog, Qgis
+from qgis.core import QgsMessageLog
 
 import os
-
-# Initialize Qt resources from file resources.py
-from .resources import *
-# Import the code for the dialog
-from .dialogs.process_part1_dialog import ProcessPart1Dialog
-from .dialogs.process_part2_dialog import ProcessPart2Dialog
-from .dialogs.generate_dialog import GenerateExcelDialog
-# from .dialogs.preverify_dialog import PreVerifyDialog
 import os.path
+
+from .resources import *
+
+from .func.helper_functions import HelperBase
+from .func.models.tronson_jt import TronsonJTModel
+from .func.models.bransament import BransamentModel
+from .func.models.stalp import StalpJTModel
+from .func.models.deschideri import DeschideriJTModel
+from .func.models.tronson_aranjat import TronsonAranjatModel
+
+from .func.parsers.firida import IgeaFiridaParser
+from .func.parsers.bransament import IgeaBransamentParser
+from .func.parsers.linie import IgeaLinieParser
+from .func.parsers.tronson import IgeaTronsonParser
+
+# from .func.parsers.deschideri import DeschideriParser
+# from .func.parsers.stalp import StalpParser
+# from .func.parsers.grup_masura import GrupMasuraParser
+
+
+
 
 
 class StalpiAssist:
@@ -56,6 +69,7 @@ class StalpiAssist:
         self.iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
+        self.helper = HelperBase()
         # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
         locale_path = os.path.join(
@@ -71,6 +85,8 @@ class StalpiAssist:
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&StalpiAssist')
+        
+        self.layers = self.helper.get_layers()
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -192,35 +208,67 @@ class StalpiAssist:
         self.toolbar.setMovable(True)
         
         self.add_action(
-            "Pre-verify",
-            text=self.tr(u'Pre-verify'),
-            callback=self.pre_verify,
+            "Fisier Destinatie",
+            text=self.tr(u'Fisier Destinatie'),
+            callback=self.helper.set_base_dir,
             parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/verify.png'))
+            icon_path= str(self.plugin_path('icons/folder.png'))
         )
         
         self.add_action(
-            "Process - Part 1",
-            text=self.tr(u'Process - Part 1'),
-            callback=self.process_part1,
+            "001_Tronson_JT",
+            text=self.tr(u'001_Tronson_JT'),
+            callback=self.run_tronson_model,
             parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/process_1.png'))
-            )
-
-        self.add_action(
-            "Process - Part 2",
-            text=self.tr(u'Process - Part 2'),
-            callback=self.process_part2,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/process_2.png'))
-            )
+            icon_path= str(self.plugin_path('icons/1.png'))
+        )
         
         self.add_action(
-            "Generate Excel",
-            text=self.tr(u'Generate Excel'),
-            callback=self.generate_excel,
+            "002_BRANS_FIRI_GR"
+            text=self.tr(u'002_BRANS_FIRI_GR'),
+            callback=self.run_brans_model,
             parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/excel.png'))
+            icon_path= str(self.plugin_path('icons/2.png'))
+        )
+        
+        self.add_action(
+            "003_STALP_JT"
+            text=self.tr(u'003_STALP_JT'),
+            callback=self.run_stalp_model,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/3.png'))
+        )
+        
+        self.add_action(
+            "003_TRONSOANE_DUBLE",
+            text=self.tr(u'003_TRONSOANE_DUBLE'),
+            callback=self.run_tronsoane_duble_model,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/4.png'))
+        )
+        
+        self.add_action(
+            "004_DESCHIDERI_JT",
+            text=self.tr(u'004_DESCHIDERI_JT'),
+            callback=self.run_deschideri_model,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/5.png'))
+        )
+        
+        self.add_action(
+            "Generare Excel + XML",
+            text=self.tr(u'Generare Excel + XML'),
+            callback=self.generate_excel_xml,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/xml.png'))
+        )
+        
+        self.add_action(
+            "Generate Anexa",
+            text=self.tr(u'Generate Anexa'),
+            callback=self.generate_anexa,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/anexa.png'))
         )
         
         # will be set False in run()
@@ -234,35 +282,135 @@ class StalpiAssist:
             self.toolbar.removeAction(action)
         del self.toolbar
         
-    def pre_verify(self):
-        """
-
-        """
-        QgsMessageLog.logMessage("Entering pre-verify...", "StalpiAssist", level=Qgis.Info)
-        pass
         
-    def process_part1(self):
-        """
-
-        """
-        QgsMessageLog.logMessage("Entering process part 1...", "StalpiAssist", level=Qgis.Info)
-        ProcessPart1Dialog().exec_()
+    def run_tronson_model(self):
+        """Run Tronson model."""
+        algorithm = TronsonJTModel()
+        params = {
+            "linie_jt_introduse": self.layers["LINIE_JT"],
+            "stalpi_desenati": self.layers["STALP_JT"],
+            "tronson_desenat": self.layers["TRONSON_JT"],
+            "TRONSON_XML_": os.path.join(self.base_dir, f"TRONSON_XML_.shp")
+        }
+        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, "TRONSON_XML_")
         
-    def process_part2(self):
-        """
-
-        """
-        QgsMessageLog.logMessage("Entering process part 2...", "StalpiAssist", level=Qgis.Info)
-        ProcessPart2Dialog().exec_()
+        
+    def run_brans_model(self):
+        algorithm = BransamentModel()
+        params = {
+            "brans_firi_desenate": self.layers["BRANS_FIRI_GRPM_JT"],
+            "fb_pe_c_les": self.layers["FB pe C LES"],
+            "linie_jt_introduse": self.layers["LINIE_JT"],
+            "BRANSAMENT_XML_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.shp"),
+            "GRUP_MASURA_XML_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
+            "FIRIDA_XML_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
+        }   
+        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["BRANSAMENT_XML_", "FIRIDA_XML_", "GRUP_MASURA_XML_"])
+        
+        
+    def run_stalp_model(self):
+        algorithm = StalpJTModel()
+        params = {
+            "poze_geotag": self.layers["poze"],
+            "stalp_in_lucru": self.layers["STALP_JT"],
+            "STALP_XML_": os.path.join(self.base_dir, f"STALP_XML_.shp")
+        }
+        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, "STALP_XML_") 
     
-    def generate_excel(self):
-        """
+    
+    def run_deschideri_model(self):
+        algorithm = DeschideriJTModel()
+        params = {
+            'stalpi_desenati': self.layers['STALP_JT'],
+            'tronson_jt': self.layers['TRONSON_XML_'],
+            'DESCHIDERI_XML_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
+            'SCR_DWG': os.path.join(self.base_dir, f"SCR_DWG.shp"),
+        }
+        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["DESCHIDERI_XML_", "SCR_DWG"])
+        
+        
+    def run_tronsoane_duble_model(self):
+        algorithm = TronsonAranjatModel()
+        params = {
+            'tronson_aranjat': self.layers['TRONSON_ARANJAT'],
+            'TRONSON_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
+        }
+        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["TRONSON_predare_xml"])
 
+
+    def generate_excel_xml(self, base_dir):
         """
-        QgsMessageLog.logMessage("Entering generate excel...", "StalpiAssist", level=Qgis.Info)
-        GenerateExcelDialog().exec_()
+        Generates XML and XLSX files for the columns of given layers, skipping any column named 'fid'.
+        Replaces blanks in column names with apostrophes.
+
+        :param base_dir: Directory where the files will be saved.
+        """
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+            
+        # Map layer names to desired file names
+        file_name_mapping = {
+            "LINIE_JT": "linie_jt",
+            "STALP_XML_": "stalp",
+            "BRANSAMENT_XML_": "bransament",
+            "GRUP_MASURA_XML_": "grup_masura",
+            "FIRIDA_XML_": "firida",
+            "DESCHIDERI_XML_": "deschidere",
+            "TRONSON_predare_xml": "tronson_jt"
+        }
+        
+        layers = [
+            self.layers['LINIE_JT'],
+            self.layers['STALP_XML_'],
+            self.layers['BRANSAMENT_XML_'],
+            self.layers['GRUP_MASURA_XML_'],
+            self.layers['FIRIDA_XML_'],
+            self.layers['DESCHIDERI_XML_'],
+            self.layers['TRONSON_predare_xml']
+        ]
+        
+        for layer in layers:
+            layer_name = layer.name()
+            safe_layer_name = file_name_mapping.get(layer_name, layer_name)  # Get mapped name or default to layer name
+            
+            # XML file generation
+            xml_path = os.path.join(base_dir, f"{safe_layer_name}.xml")
+            root = ET.Element("Layer")
+            root.set("name", layer_name)
+            
+            for field in layer.fields():
+                if field.name().lower() != "fid":  # Skip 'fid'
+                    field_elem = ET.SubElement(root, "Field")
+                    field_name = field.name().replace(" ", "'")  # Replace blanks with apostrophes
+                    field_elem.set("name", field_name)
+                    field_elem.set("type", field.typeName())
+            
+            tree = ET.ElementTree(root)
+            tree.write(xml_path, encoding="utf-8-sig", xml_declaration=True)
+            
+            # XLSX file generation
+            xlsx_path = os.path.join(base_dir, f"{safe_layer_name}.xlsx")
+            workbook = xlsxwriter.Workbook(xlsx_path)
+            worksheet = workbook.add_worksheet()
+            
+            # Write header row
+            headers = [field.name().replace(" ", "'") for field in layer.fields() if field.name().lower() != "fid"]
+            for col_idx, header in enumerate(headers):
+                worksheet.write(0, col_idx, header)
+            
+            # Write rows
+            for row_idx, feature in enumerate(layer.getFeatures(), start=1):
+                for col_idx, field in enumerate(layer.fields()):
+                    if field.name().lower() != "fid":  # Skip 'fid'
+                        value = feature[field.name()]
+                        worksheet.write(row_idx, col_idx, value)
+            
+            workbook.close()
+            
+            print(f"Generated files for layer '{layer_name}' as '{safe_layer_name}': XML and XLSX.")
+
+    
+    def generate_anexa(self):
         pass
-    
-
 
 
