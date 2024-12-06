@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<IGEA_LINIE xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<LINIE_JT>
+		<CLASS_ID/>
+		<ID_BDI/>
+		<NR_CRT/>
+		<DENUM/>
+		<PROP/>
+		<CLASS_ID_LOC/>
+		<ID_LOC/>
+		<CLASS_ID_INST_SUP/>
+		<ID_INST_SUP/>
+		<COD_AD_ENERG/>
+		<NIV_TEN/>
+		<TIP_LIN/>
+		<AN_PIF_INIT/>
+		<NR_IV/>
+	</LINIE_JT>
+</IGEA_LINIE>

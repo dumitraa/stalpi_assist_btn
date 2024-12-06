@@ -53,45 +53,6 @@ class IgeaFiridaParser:
         self.vector_layer = vector_layer
         self.firide: List[FiridaJT] = []
         
-        self.friendly_names = {
-            "class_id": "Clasa ID",
-            "id_bdi": "ID BDI",
-            "nr_crt": "Nr. crt",
-            "iden": "Identificator",
-            "class_id_loc": "Clasa ID Locatie",
-            "id_loc": "ID Locatie",
-            "nr_crt_loc": "Nr. crt Locatie",
-            "class_id_inst_sup": "Clasa ID Instalatie Sup.",
-            "id_inst_sup": "ID Instalatie Sup.",
-            "nr_crt_inst_sup": "Nr. crt Instalatie Sup.",
-            "jud": "Judet",
-            "prim": "Primarie",
-            "loc": "Localitate",
-            "tip_str": "Tip strada",
-            "street": "Strada",
-            "nr": "Numarul",
-            "etaj": "Etaj",
-            "rol_firi": "Rolul firidei",
-            "tip_firi_ret": "Tip firida retea",
-            "tip_firi_br": "Tip firida bransament",
-            "ampl": "Amplasare",
-            "mat": "Material",
-            "lim_prop": "Limita de proprietate",
-            "def_firi": "Defecte firida",
-            "nr_cir": "Nr circuite",
-            "an_func": "Anul punerii în functiune",
-            "alt": "Altitudine",
-            "geo": "Geometrie",
-            "sursa_coord": "Sursa coordonate",
-            "data_coord": "Data actualizarii coordonatelor",
-            "long": "Longitudine",
-            "lat": "Latitudine",
-            "x_stereo_70": "x - STEREO 70 (m)",
-            "y_stereo_70": "y - STEREO 70 (m)"
-        }
-        # friendly names usage example:
-        
-        
         self.mapping = {
             "Nr.crt": "nr_crt",
             "Identificator": "iden",

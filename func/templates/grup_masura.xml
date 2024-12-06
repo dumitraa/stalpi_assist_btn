@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<IGEA_GRUP_MASURA xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<GRUP_MASURA_JT>
+		<CLASS_ID/>
+		<ID_BDI/>
+		<NR_CRT/>
+		<DENUM/>
+		<CLASS_ID_LOC/>
+		<ID_LOC/>
+		<NR_CRT_LOC/>
+		<CLASS_ID_INST_SUP/>
+		<ID_INST_SUP/>
+		<NR_CRT_INST_SUP/>
+		<JUD/>
+		<PRIM/>
+		<LOC/>
+		<TIP_STR/>
+		<STR/>
+		<NR_SCARA/>
+		<ETAJ/>
+		<AP/>
+	</GRUP_MASURA_JT>
+</IGEA_GRUP_MASURA>

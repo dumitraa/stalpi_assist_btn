@@ -62,32 +62,6 @@ class IgeaBransamentParser:
             "Observatii": "obs",
         }
 
-        self.friendly_names = {
-            "class_id": "Clasa ID",
-            "id_bdi": "ID BDI",
-            "nr_crt": "Nr.crt",
-            "denum": "Denumire",
-            "class_id_loc": "Clasa ID Locatie",
-            "id_loc": "ID Locatie",
-            "nr_crt_loc": "Nr. Crt Locatie",
-            "class_id_plc_br": "Clasa ID Plecare Bransament",
-            "id_plc_br": "ID Plecare Bransament",
-            "nr_crt_plc_br": "Nr. Crt Plecare Bransament",
-            "tip_br": "Tip Bransament",
-            "tip_cond": "Tip Conductor",
-            "lung": "Lungime",
-            "jud": "Judet",
-            "prim": "Primarie",
-            "loc": "Localitate",
-            "tip_str": "Tip Strada",
-            "street": "Strada",
-            "nr_imob": "Numar Imobil",
-            "geo": "Geometrie",
-            "sursa_coord": "Sursa Coordonate",
-            "data_coord": "Data Coordonate",
-            "obs": "Observatii"
-        }
-
     def parse(self):
         if not self.vector_layer.isValid():
             raise ValueError("The provided layer is not valid.")

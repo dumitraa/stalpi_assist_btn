@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<IGEA_BRANSAMENT xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<BRANSAMENT_JT>
+		<CLASS_ID/>
+		<ID_BDI/>
+		<NR_CRT/>
+		<DENUM/>
+		<CLASS_ID_LOC/>
+		<ID_LOC/>
+		<NR_CRT_LOC/>
+		<CLASS_ID_PLC_BR/>
+		<ID_PLC_BR/>
+		<NR_CRT_PLC_BR/>
+		<TIP_BR/>
+		<TIP_COND/>
+		<LUNG/>
+		<JUD/>
+		<PRIM/>
+		<LOC/>
+		<TIP_STR/>
+		<STR/>
+		<NR_IMOB/>
+		<GEO/>
+		<SURSA_COORD/>
+		<DATA_COORD/>
+		<OBS/>
+	</BRANSAMENT_JT>
+</IGEA_BRANSAMENT>

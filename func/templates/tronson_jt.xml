@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<IGEA_TRONSON xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <TRONSON_JT>
+        <CLASS_ID/>
+        <ID_BDI/>
+        <NR_CRT/>
+        <DENUM/>
+        <PROP/>
+        <CLASS_ID_LOC/>
+        <ID_LOC/>
+        <NR_CRT_LOC/>
+        <CLASS_ID_INC_TR/>
+        <ID_INC_TR/>
+        <NR_CRT_INC_TR/>
+        <CLASS_ID_FIN_TR/>
+        <ID_FIN_TR/>
+        <NR_CRT_FIN_TR/>
+        <TIP_TR/>
+        <TIP_COND/>
+        <LUNG_TR/>
+        <GEO/>
+        <SURSA_COORD/>
+        <DATA_COORD/>
+        <UNIT_LOG_INT/>
+        <S_UNIT_LOG/>
+        <POST_LUC/>
+        <OBS/>
+    </TRONSON_JT>
+</IGEA_TRONSON>

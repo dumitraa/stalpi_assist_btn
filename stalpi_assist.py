@@ -21,37 +21,32 @@
  *                                                                         *
  ***************************************************************************/
 """
-
 from pathlib import Path
 
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
-from qgis.core import QgsMessageLog
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication # type: ignore
+from qgis.PyQt.QtGui import QIcon # type: ignore
+from qgis.PyQt.QtWidgets import QAction # type: ignore
+from qgis.core import QgsMessageLog, QgsProcessingFeedback, QgsProcessingContext, Qgis # type: ignore
+from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
 
 import os
 import os.path
 
 from .resources import *
 
-from .func.helper_functions import HelperBase
+from .func.helper_functions import HelperBase, SHPProcessor
 from .func.models.tronson_jt import TronsonJTModel
 from .func.models.bransament import BransamentModel
 from .func.models.stalp import StalpJTModel
 from .func.models.deschideri import DeschideriJTModel
 from .func.models.tronson_aranjat import TronsonAranjatModel
 
-from .func.parsers.firida import IgeaFiridaParser
-from .func.parsers.bransament import IgeaBransamentParser
-from .func.parsers.linie import IgeaLinieParser
-from .func.parsers.tronson import IgeaTronsonParser
-
-# from .func.parsers.deschideri import DeschideriParser
-# from .func.parsers.stalp import StalpParser
-# from .func.parsers.grup_masura import GrupMasuraParser
+from .func.generate_dialog import GenerateExcelDialog
 
 
-
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl import Workbook
+import xml.etree.ElementTree as ET
 
 
 class StalpiAssist:
@@ -131,45 +126,7 @@ class StalpiAssist:
         parent=None,
         icon_path=None,
         shortcut=None,):
-        """Add a toolbar icon to the toolbar.
-
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
-        :type icon_path: str
-
-        :param text: Text that should be shown in menu items for this action.
-        :type text: str
-
-        :param callback: Function to be called when the action is triggered.
-        :type callback: function
-
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-        :type enabled_flag: bool
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-        :type add_to_menu: bool
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
-        :type status_tip: str
-
-        :param parent: Parent widget for the new action. Defaults None.
-        :type parent: QWidget
-
-        :param whats_this: Optional text to show in the status bar when the
-            mouse pointer hovers over the action.
-
-        :returns: The action that was created. Note that the action is also
-            added to self.actions list.
-        :rtype: QAction
-        """
-
+        
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
         action.setEnabled(enabled_flag)
@@ -201,75 +158,79 @@ class StalpiAssist:
 
 
     def initGui(self):
-        """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         self.toolbar = self.iface.addToolBar('StalpiAssist')
         self.toolbar.setObjectName('StalpiAssist')
         self.toolbar.setMovable(True)
         
-        self.add_action(
+        # Adding actions with default enabled flag set to False except "Fisier Destinatie"
+        self.fisier_destinatie_action = self.add_action(
             "Fisier Destinatie",
             text=self.tr(u'Fisier Destinatie'),
-            callback=self.helper.set_base_dir,
+            callback=self.set_base_dir,
             parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/folder.png'))
+            icon_path= str(self.plugin_path('icons/folder.png')),
+            enabled_flag=True
         )
         
-        self.add_action(
-            "001_Tronson_JT",
-            text=self.tr(u'001_Tronson_JT'),
-            callback=self.run_tronson_model,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/1.png'))
-        )
-        
-        self.add_action(
-            "002_BRANS_FIRI_GR"
-            text=self.tr(u'002_BRANS_FIRI_GR'),
-            callback=self.run_brans_model,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/2.png'))
-        )
-        
-        self.add_action(
-            "003_STALP_JT"
-            text=self.tr(u'003_STALP_JT'),
-            callback=self.run_stalp_model,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/3.png'))
-        )
-        
-        self.add_action(
-            "003_TRONSOANE_DUBLE",
-            text=self.tr(u'003_TRONSOANE_DUBLE'),
-            callback=self.run_tronsoane_duble_model,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/4.png'))
-        )
-        
-        self.add_action(
-            "004_DESCHIDERI_JT",
-            text=self.tr(u'004_DESCHIDERI_JT'),
-            callback=self.run_deschideri_model,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/5.png'))
-        )
-        
-        self.add_action(
-            "Generare Excel + XML",
-            text=self.tr(u'Generare Excel + XML'),
-            callback=self.generate_excel_xml,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/xml.png'))
-        )
-        
-        self.add_action(
-            "Generate Anexa",
-            text=self.tr(u'Generate Anexa'),
-            callback=self.generate_anexa,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/anexa.png'))
-        )
+        self.actions_to_enable = [
+            self.add_action(
+                "001_Tronson_JT",
+                text=self.tr(u'001_Tronson_JT'),
+                callback=self.run_tronson_model,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/1.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "002_BRANS_FIRI_GR",
+                text=self.tr(u'002_BRANS_FIRI_GR'),
+                callback=self.run_brans_model,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/2.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "003_STALP_JT",
+                text=self.tr(u'003_STALP_JT'),
+                callback=self.run_stalp_model,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/3.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "003_TRONSOANE_DUBLE",
+                text=self.tr(u'003_TRONSOANE_DUBLE'),
+                callback=self.run_tronsoane_duble_model,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/4.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "004_DESCHIDERI_JT",
+                text=self.tr(u'004_DESCHIDERI_JT'),
+                callback=self.run_deschideri_model,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/5.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "Generare Excel + XML",
+                text=self.tr(u'Generare Excel + XML'),
+                callback=self.generate_excel_xml,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/xml.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "Generate Anexa",
+                text=self.tr(u'Generate Anexa'),
+                callback=self.generate_anexa,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/anexa.png')),
+                enabled_flag=False
+            )
+        ]
         
         # will be set False in run()
         self.first_start = True
@@ -282,6 +243,21 @@ class StalpiAssist:
             self.toolbar.removeAction(action)
         del self.toolbar
         
+    
+    def set_base_dir(self):
+        """Set base directory and update icons."""
+        base_dir = QFileDialog.getExistingDirectory(None, "Select Base Directory", "")
+        if base_dir:
+            self.base_dir = base_dir  # Set the base directory here directly
+            QgsMessageLog.logMessage(f"Base directory set to: {self.base_dir}", "StalpiAssist", level=Qgis.Info)
+            # Update the icon for Fisier Destinatie to complete.png
+            self.fisier_destinatie_action.setIcon(QIcon(str(self.plugin_path('icons/complete.png'))))
+            # Enable all other actions
+            for action in self.actions_to_enable:
+                action.setEnabled(True)
+                
+            self.feedback = QgsProcessingFeedback()
+            self.context = QgsProcessingContext()
         
     def run_tronson_model(self):
         """Run Tronson model."""
@@ -337,80 +313,19 @@ class StalpiAssist:
         }
         self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["TRONSON_predare_xml"])
 
-
-    def generate_excel_xml(self, base_dir):
-        """
-        Generates XML and XLSX files for the columns of given layers, skipping any column named 'fid'.
-        Replaces blanks in column names with apostrophes.
-
-        :param base_dir: Directory where the files will be saved.
-        """
-        if not os.path.exists(base_dir):
-            os.makedirs(base_dir)
-            
-        # Map layer names to desired file names
-        file_name_mapping = {
-            "LINIE_JT": "linie_jt",
-            "STALP_XML_": "stalp",
-            "BRANSAMENT_XML_": "bransament",
-            "GRUP_MASURA_XML_": "grup_masura",
-            "FIRIDA_XML_": "firida",
-            "DESCHIDERI_XML_": "deschidere",
-            "TRONSON_predare_xml": "tronson_jt"
-        }
-        
-        layers = [
-            self.layers['LINIE_JT'],
-            self.layers['STALP_XML_'],
-            self.layers['BRANSAMENT_XML_'],
-            self.layers['GRUP_MASURA_XML_'],
-            self.layers['FIRIDA_XML_'],
-            self.layers['DESCHIDERI_XML_'],
-            self.layers['TRONSON_predare_xml']
-        ]
-        
-        for layer in layers:
-            layer_name = layer.name()
-            safe_layer_name = file_name_mapping.get(layer_name, layer_name)  # Get mapped name or default to layer name
-            
-            # XML file generation
-            xml_path = os.path.join(base_dir, f"{safe_layer_name}.xml")
-            root = ET.Element("Layer")
-            root.set("name", layer_name)
-            
-            for field in layer.fields():
-                if field.name().lower() != "fid":  # Skip 'fid'
-                    field_elem = ET.SubElement(root, "Field")
-                    field_name = field.name().replace(" ", "'")  # Replace blanks with apostrophes
-                    field_elem.set("name", field_name)
-                    field_elem.set("type", field.typeName())
-            
-            tree = ET.ElementTree(root)
-            tree.write(xml_path, encoding="utf-8-sig", xml_declaration=True)
-            
-            # XLSX file generation
-            xlsx_path = os.path.join(base_dir, f"{safe_layer_name}.xlsx")
-            workbook = xlsxwriter.Workbook(xlsx_path)
-            worksheet = workbook.add_worksheet()
-            
-            # Write header row
-            headers = [field.name().replace(" ", "'") for field in layer.fields() if field.name().lower() != "fid"]
-            for col_idx, header in enumerate(headers):
-                worksheet.write(0, col_idx, header)
-            
-            # Write rows
-            for row_idx, feature in enumerate(layer.getFeatures(), start=1):
-                for col_idx, field in enumerate(layer.fields()):
-                    if field.name().lower() != "fid":  # Skip 'fid'
-                        value = feature[field.name()]
-                        worksheet.write(row_idx, col_idx, value)
-            
-            workbook.close()
-            
-            print(f"Generated files for layer '{layer_name}' as '{safe_layer_name}': XML and XLSX.")
+    def generate_excel_xml(self):
+        self.process_layers()
+        dialog = GenerateExcelDialog(self.base_dir)  # Create an instance of your dialog
+        dialog.exec_()  # Properly call exec_ on the instance
 
     
     def generate_anexa(self):
+        self.process_layers()
         pass
-
-
+    
+    
+    def process_layers(self):
+        old_layers = self.layers
+        if self.helper.get_layers() != old_layers:
+            self.processor = None
+            self.processor = SHPProcessor(self.layers)

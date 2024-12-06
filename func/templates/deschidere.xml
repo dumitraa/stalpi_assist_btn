@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<IGEA_DESCHIDERE xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<DESCHIDERE_JT>
+		<CLASS_ID/>
+		<ID_BDI/>
+		<NR_CRT/>
+		<DENUM/>
+		<ID_STP_INC/>
+		<NR_CRT_STP_INC/>
+		<ID_STP_TERM/>
+		<NR_CRT_STP_TERM/>
+		<ID_TR_JT1/>
+		<NR_CRT_TR_JT1/>
+		<ID_TR_JT2/>
+		<NR_CRT_TR_JT2/>
+		<ID_TR_JT3/>
+		<NR_CRT_TR_JT3/>
+		<ID_TR_JT4/>
+		<NR_CRT_TR_JT4/>
+		<ID_TR_JT5/>
+		<NR_CRT_TR_JT5/>
+		<ID_TR_JT6/>
+		<NR_CRT_TR_JT6/>
+		<GEO/>
+		<LUNG/>
+		<SURSA_COORD/>
+		<DATA_COORD/>
+	</DESCHIDERE_JT>
+</IGEA_DESCHIDERE>

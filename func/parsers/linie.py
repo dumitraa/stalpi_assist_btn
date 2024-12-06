@@ -37,23 +37,6 @@ class IgeaLinieParser:
             "Nivel tensiune (kV)": "niv_ten",
             "Tipul liniei": "tip_lin",
         }
-        
-        self.friendly_names = {
-            "class_id": "Clasa ID",
-            "id_bdi": "ID BDI",
-            "nr_crt": "Nr. crt.",
-            "denum": "Denumire",
-            "prop": "Proprietar",
-            "class_id_loc": "Clasa ID Locatie",
-            "id_loc": "ID Locatie",
-            "class_id_inst_sup": "Clasa ID Instalatie Sup.",
-            "id_inst_sup": "ID Instalatie Sup.",
-            "cod_ad_energ": "Cod calcul adresa energetica",
-            "niv_ten": "Nivel tensiune",
-            "tip_lin": "Tip linie",
-            "an_pif_init": "Anul PIF Initial",
-            "nr_iv": "Nr. Inventar"
-        }
             
     def parse(self):
         if not self.vector_layer.isValid():
@@ -61,7 +44,7 @@ class IgeaLinieParser:
 
         for feature in self.vector_layer.getFeatures():
             linie_data = LinieJT(
-                id=feature["ID"],
+                id=feature.id(),
                 class_id=feature["CLASS_ID"],
                 id_bdi=feature["ID_BDI"],
                 nr_crt=feature["NR_CRT"],

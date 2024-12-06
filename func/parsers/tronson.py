@@ -63,33 +63,6 @@ class IgeaTronsonParser:
             "Observatii": "obs"
         }
         
-        self.friendly_names = {
-            "class_id": "Clasa ID",
-            "id_bdi": "ID BDI",
-            "nr_crt": "Nr. crt",
-            "denum": "Denumire",
-            "prop": "Proprietar",
-            "class_id_loc": "Clasa ID Loc.",
-            "id_loc": "ID Locatie",
-            "nr_crt_loc": "Nr. crt Loc.",
-            "class_id_inc_tr": "Clasa ID Inceput de tro.",
-            "id_inc_tr": "ID Inceput de tronson",
-            "nr_crt_inc_tr": "Nr. crt Inceput de tr.",
-            "class_id_fin_tr": "Clasa ID Final de tr.",
-            "id_fin_tr": "ID Final de tronson",
-            "nr_crt_fin_tr": "Nr. crt Final de tr.",
-            "tip_tr": "Tipul tr.",
-            "tip_cond": "Tip conductor",
-            "lung_tr": "Lungimea tr.",
-            "geo": "Geometrie",
-            "sursa_coord": "Sursa coordonate",
-            "data_coord": "Data coordonate",
-            "unit_log_int": "Unitate logistica de intretinere",
-            "s_unit_log": "Sectie unitate logistica",
-            "post_luc": "Post de lucru",
-            "obs": "Observatii"
-        }
-
 
     def parse(self):
         if not self.vector_layer.isValid():

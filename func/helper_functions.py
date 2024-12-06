@@ -2,10 +2,17 @@ import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xlsxwriter
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
-from openpyxl.worksheet.table import Table, TableStyleInfo
 from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis # type: ignore
+
+from .parsers.firida import IgeaFiridaParser
+from .parsers.bransament import IgeaBransamentParser
+from .parsers.linie import IgeaLinieParser
+from .parsers.tronson import IgeaTronsonParser
+from .parsers.deschidere import IgeaDeschidereParser
+from .parsers.stalp import IgeaStalpParser
+from .parsers.grup_masura import IgeaGrupMasuraParser
 
 
 class HelperBase:
@@ -110,7 +117,7 @@ class HelperBase:
             QgsMessageLog.logMessage(f"Error adding layer to project: {e}", "StalpiAssist", level=Qgis.Critical)
             
             
-    def run_algorithm(algorithm, params, context, feedback, outputs):
+    def run_algorithm(self, algorithm, params, context, feedback, outputs):
         try:
             results = algorithm.processAlgorithm(params, context, feedback)
             
@@ -159,45 +166,6 @@ class HelperBase:
         with open(xml_file, 'w', encoding='utf-8') as f:
             f.write(pretty_xml)
             
-            
-    def write_to_excel(self, excel_file):
-        data = []
-        headers = list(self.mapping.keys())
-        
-        for linie in self.linii:
-            row = []
-            for header in headers:
-                mapping = self.mapping[header]
-                if not mapping:
-                    value = ""
-                elif isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(linie, attr, '')}"
-                else:
-                    value = getattr(linie, mapping, "")
-                row.append(value)
-            data.append(row)
-        
-        workbook = Workbook()
-        sheet = workbook.active
-
-        # Write headers
-        sheet.append(headers)
-
-        # Write data
-        for row in data:
-            sheet.append(row)
-
-        # Create and format as a table
-        tab = Table(ref=f"A1:{chr(65 + len(headers) - 1)}{len(data) + 1}")
-        style = TableStyleInfo(name="TableStyleMedium2", showFirstColumn=False,
-                               showLastColumn=False, showRowStripes=True, showColumnStripes=True)
-        tab.tableStyleInfo = style
-        sheet.add_table(tab)
-
-        workbook.save(excel_file)
-            
-            
     def write_to_excel_sheet(self, parser, sheet_name, excel_file):
         data = []
         headers = list(self.mapping.keys())
@@ -239,3 +207,45 @@ class HelperBase:
                     cell.border = thin_border
         
         workbook.save(excel_file)
+        
+        
+class SHPProcessor:
+    '''
+    Class to process the SHP layers, validate them and load them into QGIS
+    '''
+    def __init__(self, layers):
+        '''
+        Constructor for the SHPProcessor class
+        :param layers: A dictionary with layer names and their respective QgsVectorLayer objects
+        :param output_xlsx: The name of the output Excel file
+        :return:
+        '''
+        self.layers = layers
+        self.parsers = []
+        self.invalid_elements = []
+        self.load_layers()
+    
+    def load_layers(self):
+        '''
+        Load the SHP layers, parse them and store the parsers in a list
+        :return: None
+        '''
+        for layer_name, layer in self.layers.items():
+            match layer_name.lower():
+                case "LINIE_JT": 
+                    parser = IgeaLinieParser(layer)
+                case "STALP_XML_":
+                    parser = IgeaStalpParser(layer)
+                case "BRANSAMENT_XML_":
+                    parser = IgeaBransamentParser(layer)
+                case "GRUP_MASURA_XML_":
+                    parser = IgeaGrupMasuraParser(layer)
+                case "DESCHIDERI_XML_":
+                    parser = IgeaDeschidereParser(layer)
+                case "FIRIDA_XML_":
+                    parser = IgeaFiridaParser(layer)
+                case "TRONSON_predare_xml":
+                    parser = IgeaTronsonParser(layer)
+                
+            parser.parse()
+            self.parsers.append(parser)
