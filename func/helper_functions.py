@@ -249,3 +249,5 @@ class SHPProcessor:
                 
             parser.parse()
             self.parsers.append(parser)
+            QgsMessageLog.logMessage(f"Layer '{layer_name}' parsed successfully.", "StalpiAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage(f"Parser data: {parser.get_data()}", "StalpiAssist", level=Qgis.Info)

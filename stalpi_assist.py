@@ -28,6 +28,7 @@ from qgis.PyQt.QtGui import QIcon # type: ignore
 from qgis.PyQt.QtWidgets import QAction # type: ignore
 from qgis.core import QgsMessageLog, QgsProcessingFeedback, QgsProcessingContext, Qgis # type: ignore
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
+import shutil
 
 import os
 import os.path
@@ -65,6 +66,7 @@ class StalpiAssist:
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         self.helper = HelperBase()
+        self.processor = None
         # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
         locale_path = os.path.join(
@@ -320,7 +322,13 @@ class StalpiAssist:
 
     
     def generate_anexa(self):
-        self.process_layers()
+        try: 
+            self.process_layers()
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error processing layers: {str(e)}", level=Qgis.Critical)
+            return
+        # copy template excel file (templates/anexa.xlsx) to base_dir
+        shutil.copy(str(self.plugin_path('func/templates/anexa.xlsx')), self.base_dir)
         for parser in self.processor.parsers:
             parser.write_to_excel_sheet(os.path.join(self.base_dir, f"anexa.xlsx"))
         pass
@@ -330,4 +338,7 @@ class StalpiAssist:
         old_layers = self.layers
         if self.helper.get_layers() != old_layers:
             self.processor = None
-            self.processor = SHPProcessor(self.layers)
+            try:
+                self.processor = SHPProcessor(self.layers)
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error processing layers: {str(e)}", level=Qgis.Critical)
