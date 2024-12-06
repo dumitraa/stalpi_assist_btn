@@ -31,8 +31,24 @@ class IgeaGrupMasuraParser:
         self.vector_layer = vector_layer
         self.grup: List[GrupMasuraJT] = []
         
+        # map names - Nr.crt	Denumire	Descrierea BDI	Nr.crt_Locatia	Locatia	ID_Descrierea instalatiei uperioare	Descrierea instalatiei uperioare	Judet	Primarie	Localitate	Tip strada	Strada	nr./ scara	Etaj	Apartament
+
         self.mapping = {
-            "ID": "placeholder"
+            "Nr.crt": "nr_crt",
+            "Denumire": "denum",
+            "Descrierea BDI": "",
+            "Nr.crt_Locatia": "nr_crt_loc",
+            "Locatia": "id_loc",
+            "ID_Descrierea instalatiei uperioare": "id_inst_sup",
+            "Descrierea instalatiei uperioare": "nr_crt_inst_sup",
+            "Judet": "jud",
+            "Primarie": "prim",
+            "Localitate": "loc",
+            "Tip strada": "tip_str",
+            "Strada": "str",
+            "nr./ scara": "nr_scara",
+            "Etaj": "etaj",
+            "Apartament": "ap"
         }
             
     def parse(self):

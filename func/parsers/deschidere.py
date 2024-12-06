@@ -1,7 +1,7 @@
 from typing import List
 
 class DeschidereJT:
-    def __init__(self, id, class_id, id_bdi, nr_crt, denum, ip_stp_inc, nr_crt_stp_inc, id_stp_term, nr_crt_stp_term, id_tr_jt1, nr_crt_tr_jt1, id_tr_jt2, nr_crt_tr_jt2, id_tr_jt3, nr_crt_tr_jt3, id_tr_jt4, nr_crt_tr_jt4, id_tr_jt5, nr_crt_tr_jt5, id_tr_jt6, nr_crt_tr_jt6, geo):
+    def __init__(self, id, class_id, id_bdi, nr_crt, denum, ip_stp_inc, nr_crt_stp_inc, id_stp_term, nr_crt_stp_term, id_tr_jt1, nr_crt_tr_jt1, id_tr_jt2, nr_crt_tr_jt2, id_tr_jt3, nr_crt_tr_jt3, id_tr_jt4, nr_crt_tr_jt4, id_tr_jt5, nr_crt_tr_jt5, id_tr_jt6, nr_crt_tr_jt6, geo, lung, sursa_coor, data_coord):
         self.id = id
         self.class_id = class_id
         self.id_bdi = id_bdi
@@ -24,6 +24,10 @@ class DeschidereJT:
         self.id_tr_jt6 = id_tr_jt6
         self.nr_crt_tr_jt6 = nr_crt_tr_jt6
         self.geo = geo
+        self.lung = lung
+        self.sursa_coor = sursa_coor
+        self.data_coord = data_coord
+        
 
     def __repr__(self):
         return f"DeschidereJT(denum={self.denum}, niv_ten={self.niv_ten}, tip_lin={self.tip_lin})"
@@ -34,8 +38,33 @@ class IgeaDeschidereParser:
         self.vector_layer = vector_layer
         self.stalpi: List[DeschidereJT] = []
         
+        # map values: Nr.crt	Denumire	Descrierea BDI	ID_Locatia	Locatia	Nr.crt_Inceput	Stâlpul de inceput	Nr.crt_sfarsit	Stâlpul terminal	ID_Tronson JT1	Tronson JT1	ID_Tronson JT2	Tronson JT2	ID_Tronson JT3	Tronson JT3	ID_Tronson JT4	Tronson JT4	ID_Tronson JT5	Tronson JT5	ID_Tronson JT6	Tronson JT6	Lungime (m)	Geometrie	Observatii
+
         self.mapping = {
-            "ID": "placeholder"
+            "Nr.crt": "nr_crt",
+            "Denumire": "denum",
+            "Descrierea BDI": "",
+            "ID_Locatia": "id_loc",
+            "Locatia": "loc",
+            "Nr.crt_Inceput": "nr_crt_stp_inc",
+            "Stâlpul de inceput": "ip_stp_inc",
+            "Nr.crt_sfarsit": "nr_crt_stp_term",
+            "Stâlpul terminal": "id_stp_term",
+            "ID_Tronson JT1": "id_tr_jt1",
+            "Tronson JT1": "nr_crt_tr_jt1",
+            "ID_Tronson JT2": "id_tr_jt2",
+            "Tronson JT2": "nr_crt_tr_jt2",
+            "ID_Tronson JT3": "id_tr_jt3",
+            "Tronson JT3": "nr_crt_tr_jt3",
+            "ID_Tronson JT4": "id_tr_jt4",
+            "Tronson JT4": "nr_crt_tr_jt4",
+            "ID_Tronson JT5": "id_tr_jt5",
+            "Tronson JT5": "nr_crt_tr_jt5",
+            "ID_Tronson JT6": "id_tr_jt6",
+            "Tronson JT6": "nr_crt_tr_jt6",
+            "Lungime (m)": "lung",
+            "Geometrie": "geo",
+            "Observatii": ""
         }
             
     def parse(self):
@@ -65,7 +94,10 @@ class IgeaDeschidereParser:
                 nr_crt_tr_jt5=feature["NR_CRT_TR_JT5"],
                 id_tr_jt6=feature["ID_TR_JT6"],
                 nr_crt_tr_jt6=feature["NR_CRT_TR_JT6"],
-                geo=feature["GEO"]
+                geo=feature["GEO"],
+                lung=feature["LUNG"],
+                sursa_coor=feature["SURSA_COOR"], # ?????????????
+                data_coord=feature["DATA_COORD"]
             )
             self.deschideri.append(deschidere_data)
             

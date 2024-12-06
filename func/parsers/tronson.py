@@ -1,4 +1,6 @@
 from typing import List
+from openpyxl import load_workbook
+from openpyxl.styles import Border, Side
 
 class TronsonJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, nr_crt_loc, 
@@ -100,3 +102,46 @@ class IgeaTronsonParser:
 
     def get_tronsoane(self):
         return self.tronsoane
+    
+    def write_to_excel_sheet(self, excel_file):
+        print("~~~* Writing tronsoane to excel *~~~")
+        data = []
+        headers = list(self.mapping.keys())
+        
+        for tronson in self.tronsoane:
+            row = []
+            for header in headers:
+                mapping = self.mapping[header]
+                if not mapping:
+                    value = ""
+                elif isinstance(mapping, tuple):
+                    prefix, attr = mapping
+                    value = f"{prefix} {getattr(tronson, attr, '')}"
+                else:
+                    value = getattr(tronson, mapping, "")
+                row.append(value)
+            data.append(row)
+        
+        workbook = load_workbook(excel_file)
+        sheet = workbook["TRONSON_JT"]
+        
+        start_row = 2
+        existing_headers = {sheet.cell(row=1, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1)}
+        
+        for row_idx, row_data in enumerate(data, start=start_row):
+                for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
+                    if header.strip(" ") in existing_headers:
+                        sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
+                        
+        thin_border = Border(left=Side(style='thin'), 
+                            right=Side(style='thin'), 
+                            top=Side(style='thin'), 
+                            bottom=Side(style='thin'))
+        
+        for row_idx, row_data in enumerate(data, start=start_row):
+            for header in enumerate(headers, start=1):
+                if header in existing_headers:
+                    cell = sheet.cell(row=row_idx, column=existing_headers[header])
+                    cell.border = thin_border
+        
+        workbook.save(excel_file)

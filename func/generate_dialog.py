@@ -1,11 +1,13 @@
 import os
 import xml.etree.ElementTree as ET
+import gc
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QMessageBox
-from openpyxl import load_workbook, Workbook
+from xml.dom import minidom
 from qgis.core import QgsProject, QgsMessageLog, Qgis  # type: ignore
 from .helper_functions import HelperBase
+from PyQt5.QtCore import QThread, pyqtSignal
 
-class GenerateExcelDialog(QDialog):
+class GenerateXMLDialog(QDialog):
     
     def __init__(self, base_dir):
         super().__init__()
@@ -13,33 +15,46 @@ class GenerateExcelDialog(QDialog):
         self.base_dir = base_dir
         self.template_path = 'templates'
         
-        self.setWindowTitle("Generate Excel + XML Files")
+        self.setWindowTitle("Generate XML Files")
         self.layout = QVBoxLayout()
 
         self.progress_bar = QProgressBar(self)
         self.layout.addWidget(self.progress_bar)
 
-        self.run_button = QPushButton("Generate Excel + XML Files", self)
+        self.run_button = QPushButton("Generate XML Files", self)
         self.run_button.clicked.connect(self.__exec__)
         self.layout.addWidget(self.run_button)
 
         self.setLayout(self.layout)
 
     def __exec__(self):
-        layers = [
-            QgsProject.instance().mapLayersByName('LINIE_JT')[0],
-            QgsProject.instance().mapLayersByName('STALP_XML_')[0],
-            QgsProject.instance().mapLayersByName('BRANSAMENT_XML_')[0],
-            QgsProject.instance().mapLayersByName('GRUP_MASURA_XML_')[0],
-            QgsProject.instance().mapLayersByName('FIRIDA_XML_')[0],
-            QgsProject.instance().mapLayersByName('DESCHIDERI_XML_')[0],
-            QgsProject.instance().mapLayersByName('TRONSON_predare_xml')[0]
-        ]
+        try:
+            layers = [
+                QgsProject.instance().mapLayersByName('LINIE_JT')[0],
+                QgsProject.instance().mapLayersByName('STALP_XML_')[0],
+                QgsProject.instance().mapLayersByName('BRANSAMENT_XML_')[0],
+                QgsProject.instance().mapLayersByName('GRUP_MASURA_XML_')[0],
+                QgsProject.instance().mapLayersByName('FIRIDA_XML_')[0],
+                QgsProject.instance().mapLayersByName('DESCHIDERI_XML_')[0],
+                QgsProject.instance().mapLayersByName('TRONSON_predare_xml')[0]
+            ]
 
-        self.progress_bar.setMaximum(len(layers) * 2)  # Two steps per layer (XML and XLSX)
-        self.progress_bar.setValue(0)
-        self.generate_excel_xml(layers)
+            self.progress_bar.setMaximum(len(layers))
+            self.progress_bar.setValue(0)
 
+            # Use a separate thread for generation to prevent UI freezing
+            self.worker_thread = GenerateXMLWorker(layers, self.base_dir, self.template_path)
+            self.worker_thread.progress_updated.connect(self.progress_bar.setValue)
+            self.worker_thread.finished.connect(self.on_generation_complete)
+            self.worker_thread.start()
+        except IndexError as e:
+            QgsMessageLog.logMessage(f"Error accessing layers: {str(e)}", level=Qgis.Critical)
+            QMessageBox.critical(self, "Error", f"Could not find one or more layers. Please check layer names.")
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Unexpected error: {str(e)}", level=Qgis.Critical)
+            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {str(e)}")
+
+    def on_generation_complete(self):
         # Notify user when all exports are complete
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Information)
@@ -51,9 +66,23 @@ class GenerateExcelDialog(QDialog):
         if msg_box.exec_() == QMessageBox.Ok:
             self.close()  # Close the plugin dialog
 
-    def generate_excel_xml(self, layers):
+class GenerateXMLWorker(QThread):
+    progress_updated = pyqtSignal(int)
+    finished = pyqtSignal()
+
+    def __init__(self, layers, base_dir, template_path):
+        super().__init__()
+        self.layers = layers
+        self.base_dir = base_dir
+        self.template_path = template_path
+
+    def run(self):
+        self.generate_xml(self.layers)
+        self.finished.emit()
+
+    def generate_xml(self, layers):
         """
-        Generates XML and XLSX files for the columns of given layers, using predefined templates if available.
+        Generates XML files for the columns of given layers, using predefined templates if available.
         Replaces blanks in column names with apostrophes.
 
         :param layers: List of QgsVectorLayer objects.
@@ -73,54 +102,27 @@ class GenerateExcelDialog(QDialog):
 
         progress = 0
         for layer in layers:
-            layer_name = layer.name()
-            safe_layer_name = file_name_mapping.get(layer_name, layer_name)
+            try:
+                layer_name = layer.name()
+                safe_layer_name = file_name_mapping.get(layer_name, layer_name)
 
-            # Define paths
-            xlsx_template_path = os.path.join(self.template_path, f"{safe_layer_name}.xlsx")
-            xlsx_path = os.path.join(self.base_dir, f"{safe_layer_name}_.xlsx")
-            xml_template_path = os.path.join(self.template_path, f"{safe_layer_name}.xml")
-            xml_path = os.path.join(self.base_dir, f"{safe_layer_name}.xml")
+                # Define paths
+                xml_template_path = os.path.join(self.template_path, f"{safe_layer_name}.xml")
+                xml_path = os.path.join(self.base_dir, f"{safe_layer_name}.xml")
 
-            # Load or create Excel template
-            if os.path.exists(xlsx_template_path):
-                workbook = load_workbook(xlsx_template_path)
-                sheet = workbook.active
-            else:
-                workbook = Workbook()
-                sheet = workbook.active
-                sheet.title = safe_layer_name
+                # Use XML template if available
+                if os.path.exists(xml_template_path):
+                    self.populate_xml_template(xml_template_path, xml_path, layer)
+                else:
+                    self.export_to_default_xml(xml_path, layer, safe_layer_name)
+                
+                progress += 1
+                self.progress_updated.emit(progress)
 
-                # Write header row
-                headers = [field.name().replace(" ", "'") for field in layer.fields() if field.name().lower() != "fid"]
-                sheet.append(headers)
-
-            # Clear existing data rows (except the header)
-            for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row, max_col=sheet.max_column):
-                for cell in row:
-                    cell.value = None
-
-            # Write data rows
-            headers = [cell.value for cell in sheet[1]]  # Assuming the first row contains headers
-            for i, feature in enumerate(layer.getFeatures(), start=2):  # Start from row 2
-                for col, header in enumerate(headers, start=1):
-                    sheet.cell(row=i, column=col, value=feature[header])
-
-            # Save the populated Excel file
-            workbook.save(xlsx_path)
-            QgsMessageLog.logMessage(f"Saved populated template for '{layer_name}' as {xlsx_path}.", level=Qgis.Info)
-
-            progress += 1
-            self.progress_bar.setValue(progress)
-
-            # Use XML template if available
-            if os.path.exists(xml_template_path):
-                self.populate_xml_template(xml_template_path, xml_path, layer)
-            else:
-                self.export_to_default_xml(xml_path, layer, safe_layer_name)
-            
-            progress += 1
-            self.progress_bar.setValue(progress)
+                # Explicit garbage collection to prevent memory overflow
+                gc.collect()
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error processing layer '{layer.name()}': {str(e)}", level=Qgis.Critical)
 
     def populate_xml_template(self, xml_template_path, xml_output_path, layer):
         """
@@ -130,30 +132,40 @@ class GenerateExcelDialog(QDialog):
         :param xml_output_path: Path to save the populated XML file.
         :param layer: The QGIS vector layer containing the data.
         """
-        tree = ET.parse(xml_template_path)
-        root = tree.getroot()
+        try:
+            tree = ET.parse(xml_template_path)
+            root = tree.getroot()
 
-        # Assuming the XML template has a repeating element that we need to populate with layer features
-        repeating_element_tag = list(root)[0].tag  # Get the tag of the first repeating element
-        parent = root
+            # Assuming the XML template has a repeating element that we need to populate with layer features
+            repeating_element_tag = list(root)[0].tag  # Get the tag of the first repeating element
+            parent = root
 
-        # Remove existing entries (to refresh with new data)
-        for child in root.findall(repeating_element_tag):
-            parent.remove(child)
+            # Remove existing entries (to refresh with new data)
+            for child in root.findall(repeating_element_tag):
+                parent.remove(child)
 
-        # Populate with new data from the QGIS layer
-        for feature in layer.getFeatures():
-            new_element = ET.Element(repeating_element_tag)
-            for field in layer.fields():
-                field_name = field.name()
-                field_value = feature[field_name]
-                child_element = ET.SubElement(new_element, field_name)
-                child_element.text = str(field_value) if field_value is not None else ""
-            parent.append(new_element)
+            # Populate with new data from the QGIS layer
+            for feature in layer.getFeatures():
+                new_element = ET.Element(repeating_element_tag)
+                for field in layer.fields():
+                    field_name = field.name()
+                    field_value = feature[field_name]
+                    if field_value in [None, "NULL", "nan"]:
+                        child_element = ET.SubElement(new_element, field_name)
+                    else:
+                        child_element = ET.SubElement(new_element, field_name)
+                        child_element.text = str(field_value)
+                parent.append(new_element)
 
-        # Write the updated XML to the output path
-        tree.write(xml_output_path, encoding="utf-8-sig", xml_declaration=True)
-        QgsMessageLog.logMessage(f"Populated XML template for '{layer.name()}' and saved to {xml_output_path}.", level=Qgis.Info)
+            # Prettify XML output
+            rough_string = ET.tostring(root, 'utf-8')
+            reparsed = minidom.parseString(rough_string)
+            with open(xml_output_path, "w", encoding="utf-8") as f:
+                f.write(reparsed.toprettyxml(indent="  "))
+
+            QgsMessageLog.logMessage(f"Populated XML template for '{layer.name()}' and saved to {xml_output_path}.", level=Qgis.Info)
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error populating XML template for layer '{layer.name()}': {str(e)}", level=Qgis.Critical)
 
     def export_to_default_xml(self, xml_output_path, layer, root_name):
         """
@@ -163,16 +175,26 @@ class GenerateExcelDialog(QDialog):
         :param layer: The QGIS vector layer containing the data.
         :param root_name: The name of the root XML element.
         """
-        root = ET.Element(f"IGEA_{root_name.upper()}")
-        
-        for feature in layer.getFeatures():
-            feature_elem = ET.SubElement(root, f"{root_name.upper()}_JT")
-            for field in layer.fields():
-                field_name = field.name()
-                field_value = feature[field_name]
-                field_elem = ET.SubElement(feature_elem, field_name)
-                field_elem.text = str(field_value) if field_value is not None else ""
-        
-        tree = ET.ElementTree(root)
-        tree.write(xml_output_path, encoding="utf-8-sig", xml_declaration=True)
-        QgsMessageLog.logMessage(f"Exported default XML for '{layer.name()}' to {xml_output_path}.", level=Qgis.Info)
+        try:
+            root = ET.Element(f"IGEA_{root_name.upper()}")
+            
+            for feature in layer.getFeatures():
+                feature_elem = ET.SubElement(root, f"{root_name.upper()}_JT")
+                for field in layer.fields():
+                    field_name = field.name()
+                    field_value = feature[field_name]
+                    if field_value in [None, "NULL", "nan"]:
+                        field_elem = ET.SubElement(feature_elem, field_name)
+                    else:
+                        field_elem = ET.SubElement(feature_elem, field_name)
+                        field_elem.text = str(field_value)
+            
+            # Prettify XML output
+            rough_string = ET.tostring(root, 'utf-8')
+            reparsed = minidom.parseString(rough_string)
+            with open(xml_output_path, "w", encoding="utf-8") as f:
+                f.write(reparsed.toprettyxml(indent="  "))
+
+            QgsMessageLog.logMessage(f"Exported default XML for '{layer.name()}' to {xml_output_path}.", level=Qgis.Info)
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error exporting default XML for layer '{layer.name()}': {str(e)}", level=Qgis.Critical)

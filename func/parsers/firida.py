@@ -1,4 +1,6 @@
 from typing import List
+from openpyxl import load_workbook
+from openpyxl.styles import Border, Side
 
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
@@ -136,3 +138,60 @@ class IgeaFiridaParser:
 
     def get_firide(self):
         return self.firide
+    
+    def write_to_excel_sheet(self, excel_file, split=False, done_split=False):
+        print("~~~* Writing firide to Excel *~~~")
+        data = []
+        headers = list(self.mapping.keys())
+
+        for firida in self.firide:
+            row = []
+            for header in headers:
+                mapping = self.mapping[header]
+                if isinstance(mapping, tuple):
+                    prefix, attr = mapping
+                    value = f"{prefix} {getattr(firida, attr, '')}"
+                else:
+                    value = getattr(firida, mapping, "")
+                row.append(value)
+            data.append(row)
+
+        df = pd.DataFrame(data, columns=headers)
+        workbook = load_workbook(excel_file)
+
+        if split:
+            df_retea = df[df['Rolul firidei'].str.contains('retea', na=False)]
+            df_bransament = df[df['Rolul firidei'].str.contains('bransament', na=False)]
+            sheets = {'FIRIDA RETEA': df_retea, 'FIRIDA BRANSAMENT': df_bransament}
+        else:
+            sheets = {'FIRIDA': df}
+
+        for sheet_name, df_sheet in sheets.items():
+            if sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+            else:
+                sheet = workbook.create_sheet(sheet_name)
+
+            start_row = 2
+            existing_headers = {sheet.cell(row=1, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1)}
+
+            for row_idx, row_data in enumerate(df_sheet.itertuples(index=False, name=None), start=start_row):
+                for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
+                    if header.strip(" ") in existing_headers:
+                        sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
+
+            thin_border = Border(left=Side(style='thin'),
+                                 right=Side(style='thin'),
+                                 top=Side(style='thin'),
+                                 bottom=Side(style='thin'))
+
+            for row_idx, row_data in enumerate(df_sheet.itertuples(index=False, name=None), start=start_row):
+                for col_idx, header in enumerate(headers, start=1):
+                    if header in existing_headers:
+                        cell = sheet.cell(row=row_idx, column=existing_headers[header])
+                        cell.border = thin_border
+
+        workbook.save(excel_file)
+        
+        if not done_split:
+            self.write_to_excel_sheet(excel_file, split=True, done_split=True)

@@ -41,7 +41,7 @@ from .func.models.stalp import StalpJTModel
 from .func.models.deschideri import DeschideriJTModel
 from .func.models.tronson_aranjat import TronsonAranjatModel
 
-from .func.generate_dialog import GenerateExcelDialog
+from .func.generate_dialog import GenerateXMLDialog
 
 
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -315,12 +315,14 @@ class StalpiAssist:
 
     def generate_excel_xml(self):
         self.process_layers()
-        dialog = GenerateExcelDialog(self.base_dir)  # Create an instance of your dialog
+        dialog = GenerateXMLDialog(self.base_dir)  # Create an instance of your dialog
         dialog.exec_()  # Properly call exec_ on the instance
 
     
     def generate_anexa(self):
         self.process_layers()
+        for parser in self.processor.parsers:
+            parser.write_to_excel_sheet(os.path.join(self.base_dir, f"anexa.xlsx"))
         pass
     
     
