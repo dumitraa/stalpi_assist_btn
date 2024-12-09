@@ -64,6 +64,33 @@ class IgeaBransamentParser:
             "Data actualizarii coordonatelor": "data_coord",
             "Observatii": "obs",
         }
+        
+        self.qgis_mapping = {
+            "CLASS_ID": "CLASS_ID",
+            "ID_BDI": "ID_BDI",
+            "NR_CRT": "NR_CRT",
+            "DENUM": "DENUM",
+            "CLASS_ID_L": "CLASS_ID_LOC",
+            "ID_LOC": "ID_LOC",
+            "NR_CRT_LOC": "NR_CRT_LOC",
+            "CLASS_ID_P": "CLASS_ID_PLC_BR",
+            "ID_PLC_BR": "ID_PLC_BR",
+            "NR_CRT_PLC": "NR_CRT_PLC_BR",
+            "TIP_BR": "TIP_BR",
+            "TIP_COND": "TIP_COND",
+            "LUNG": "LUNG",
+            "JUD": "JUD",
+            "PRIM": "PRIM",
+            "LOC": "LOC",
+            "TIP_STR": "TIP_STR",
+            "STR": "STR",
+            "NR_IMOB": "NR_IMOB",
+            "GEO": "GEO",
+            "SURSA_COOR": "SURSA_COORD",
+            "DATA_COORD": "DATA_COORD",
+            "OBS": "OBS"
+        }
+            
 
     def parse(self):
         if not self.vector_layer.isValid():
@@ -76,12 +103,12 @@ class IgeaBransamentParser:
                 id_bdi=feature['ID_BDI'],
                 nr_crt=feature['NR_CRT'],
                 denum=feature['DENUM'],
-                class_id_loc=feature['CLASS_ID_LOC'],
+                class_id_loc=feature['CLASS_ID_L'],
                 id_loc=feature['ID_LOC'],
                 nr_crt_loc=feature['NR_CRT_LOC'],
-                class_id_plc_br=feature['CLASS_ID_PLC_BR'],
+                class_id_plc_br=feature['CLASS_ID_P'],
                 id_plc_br=feature['ID_PLC_BR'],
-                nr_crt_plc_br=feature['NR_CRT_PLC_BR'],
+                nr_crt_plc_br=feature['NR_CRT_PLC'],
                 tip_br=feature['TIP_BR'],
                 tip_cond=feature['TIP_COND'],
                 lung=feature['LUNG'],
@@ -92,17 +119,19 @@ class IgeaBransamentParser:
                 street=feature['STR'],
                 nr_imob=feature['NR_IMOB'],
                 geo=feature['GEO'],
-                sursa_coord=feature['SURSA_COORD'],
+                sursa_coord=feature['SURSA_COOR'],
                 data_coord=feature['DATA_COORD'],
                 obs=feature['OBS']
             )
             self.bransamente.append(bransament_data)
+            
+    def get_name(self):
+        return "BRANSAMENT_XML_"
 
-    def get_bransamente(self):
+    def get_data(self):
         return self.bransamente
 
     def write_to_excel_sheet(self, excel_file):
-        print("~~~* Writing bransamente to Excel *~~~")
         data = []
         headers = list(self.mapping.keys())
         
@@ -117,6 +146,7 @@ class IgeaBransamentParser:
                     value = f"{prefix} {getattr(bransament, attr, '')}"
                 else:
                     value = getattr(bransament, mapping, "")
+                value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
         

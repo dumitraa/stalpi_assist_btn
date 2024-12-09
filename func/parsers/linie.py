@@ -39,6 +39,24 @@ class IgeaLinieParser:
             "Nivel tensiune (kV)": "niv_ten",
             "Tipul liniei": "tip_lin",
         }
+        
+        self.qgis_mapping = {
+            "CLASS_ID": "CLASS_ID",
+            "ID_BDI": "ID_BDI",
+            "NR_CRT": "NR_CRT",
+            "DENUM": "DENUM",
+            "PROP": "PROP",
+            "CLASS_ID_LOC": "CLASS_ID_LOC",
+            "ID_LOC": "ID_LOC",
+            "CLASS_ID_INST_SUP": "CLASS_ID_INST_SUP",
+            "ID_INST_SUP": "ID_INST_SUP",
+            "COD_AD_ENERG": "COD_AD_ENERG",
+            "NIV_TEN": "NIV_TEN",
+            "TIP_LIN": "TIP_LIN",
+            "AN_PIF_INIT": "AN_PIF_INIT",
+            "NR_IV": "NR_IV",
+        }
+            
             
     def parse(self):
         if not self.vector_layer.isValid():
@@ -64,17 +82,21 @@ class IgeaLinieParser:
             )
             self.linii.append(linie_data)
             
-    def get_linii(self):
+    def get_data(self):
         return self.linii
+    
+    def get_name(self):
+        return "LINIE_JT"
     
     def write_to_excel_sheet(self, excel_file):
         data = []
         headers = list(self.mapping.keys())
         
+        # Prepare data for writing
         for linie in self.linii:
             row = []
             for header in headers:
-                mapping = self.mapping[header]
+                mapping = self.mapping.get(header)
                 if not mapping:
                     value = ""
                 elif isinstance(mapping, tuple):
@@ -82,6 +104,8 @@ class IgeaLinieParser:
                     value = f"{prefix} {getattr(linie, attr, '')}"
                 else:
                     value = getattr(linie, mapping, "")
+                # Replace None with an empty string
+                value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
         
@@ -89,22 +113,30 @@ class IgeaLinieParser:
         sheet = workbook["LINIE_JOASA_TENSIUNE"]
         
         start_row = 2
-        existing_headers = {sheet.cell(row=1, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1)}
+        existing_headers = {
+            sheet.cell(row=1, column=col_idx).value: col_idx
+            for col_idx in range(1, sheet.max_column + 1)
+        }
+        
+        # Write data to the sheet
+        for row_idx, row_data in enumerate(data, start=start_row):
+            for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
+                if header.strip() in existing_headers:
+                    sheet.cell(row=row_idx, column=existing_headers[header.strip()], value=cell_value if cell_value is not None else "")
+        
+        # Add borders to the cells
+        thin_border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
         
         for row_idx, row_data in enumerate(data, start=start_row):
-                for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                    if header.strip(" ") in existing_headers:
-                        sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
-                                
-        thin_border = Border(left=Side(style='thin'), 
-                            right=Side(style='thin'), 
-                            top=Side(style='thin'), 
-                            bottom=Side(style='thin'))
-        
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for header in enumerate(headers, start=1):
-                if header in existing_headers:
-                    cell = sheet.cell(row=row_idx, column=existing_headers[header])
+            for header in headers:
+                if header.strip() in existing_headers:
+                    cell = sheet.cell(row=row_idx, column=existing_headers[header.strip()])
                     cell.border = thin_border
         
         workbook.save(excel_file)
+

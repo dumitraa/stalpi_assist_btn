@@ -28,7 +28,6 @@ from qgis.PyQt.QtGui import QIcon # type: ignore
 from qgis.PyQt.QtWidgets import QAction # type: ignore
 from qgis.core import QgsMessageLog, QgsProcessingFeedback, QgsProcessingContext, Qgis # type: ignore
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
-import shutil
 
 import os
 import os.path
@@ -42,12 +41,8 @@ from .func.models.stalp import StalpJTModel
 from .func.models.deschideri import DeschideriJTModel
 from .func.models.tronson_aranjat import TronsonAranjatModel
 
-from .func.generate_dialog import GenerateXMLDialog
-
-
-from openpyxl.worksheet.table import Table, TableStyleInfo
-from openpyxl import Workbook
-import xml.etree.ElementTree as ET
+from .func.generate_xml import GenerateXMLDialog
+from .func.generate_excel import GenerateExcelDialog
 
 
 class StalpiAssist:
@@ -219,7 +214,7 @@ class StalpiAssist:
             self.add_action(
                 "Generare Excel + XML",
                 text=self.tr(u'Generare Excel + XML'),
-                callback=self.generate_excel_xml,
+                callback=self.generate_xml,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/xml.png')),
                 enabled_flag=False
@@ -315,30 +310,36 @@ class StalpiAssist:
         }
         self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["TRONSON_predare_xml"])
 
-    def generate_excel_xml(self):
-        self.process_layers()
+    def generate_xml(self):
+        self.process_layers(self.layers)
         dialog = GenerateXMLDialog(self.base_dir)  # Create an instance of your dialog
         dialog.exec_()  # Properly call exec_ on the instance
-
-    
+        
     def generate_anexa(self):
-        try: 
-            self.process_layers()
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error processing layers: {str(e)}", level=Qgis.Critical)
-            return
-        # copy template excel file (templates/anexa.xlsx) to base_dir
-        shutil.copy(str(self.plugin_path('func/templates/anexa.xlsx')), self.base_dir)
-        for parser in self.processor.parsers:
-            parser.write_to_excel_sheet(os.path.join(self.base_dir, f"anexa.xlsx"))
-        pass
-    
-    
-    def process_layers(self):
-        old_layers = self.layers
-        if self.helper.get_layers() != old_layers:
-            self.processor = None
+        self.process_layers(self.layers)
+        dialog = GenerateExcelDialog(self.base_dir)  # Create an instance of your dialog
+        dialog.exec_()  # Properly call exec_ on the instance
+        
+        
+    def process_layers(self, layers):
+        if not self.processor:
             try:
-                self.processor = SHPProcessor(self.layers)
+                self.processor = SHPProcessor(layers)
             except Exception as e:
-                QgsMessageLog.logMessage(f"Error processing layers: {str(e)}", level=Qgis.Critical)
+                return
+        
+        try:
+            current_layers = self.helper.get_layers()
+        except Exception as e:
+            return
+        
+        if current_layers != layers:
+            self.processor = None
+            
+            try:
+                self.processor = SHPProcessor(current_layers)
+            except Exception as e:
+                return
+        else:
+            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Info)
+

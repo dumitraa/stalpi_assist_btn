@@ -2,8 +2,6 @@ import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xlsxwriter
-from openpyxl import load_workbook
-from openpyxl.styles import Border, Side
 from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis # type: ignore
 
 from .parsers.firida import IgeaFiridaParser
@@ -18,6 +16,7 @@ from .parsers.grup_masura import IgeaGrupMasuraParser
 class HelperBase:
     def __init__(self):
         super().__init__()
+        self.processor = None
         
     # MARK: DEFAULT
     # Generate xml/xlsx files, replace blanks with apostrophes
@@ -158,55 +157,13 @@ class HelperBase:
                 child = ET.SubElement(linie_element, attr.upper())
                 child.text = str(value) if value is not None else ""
 
-        rough_string = ET.tostring(root, 'utf-8')
+        rough_string = ET.tostring(root, 'utf-8-sig')
 
         reparsed = minidom.parseString(rough_string)
         pretty_xml = reparsed.toprettyxml(indent="    ")
 
-        with open(xml_file, 'w', encoding='utf-8') as f:
+        with open(xml_file, 'w', encoding='utf-8-sig') as f:
             f.write(pretty_xml)
-            
-    def write_to_excel_sheet(self, parser, sheet_name, excel_file):
-        data = []
-        headers = list(self.mapping.keys())
-        
-        for element in parser:
-            row = []
-            for header in headers:
-                mapping = self.mapping[header]
-                if not mapping:
-                    value = ""
-                elif isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(element, attr, '')}"
-                else:
-                    value = getattr(element, mapping, "")
-                row.append(value)
-            data.append(row)
-        
-        workbook = load_workbook(excel_file)
-        sheet = workbook[sheet_name]
-        
-        start_row = 2
-        existing_headers = {sheet.cell(row=1, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1)}
-        
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip(" ") in existing_headers:
-                    sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
-        
-        thin_border = Border(left=Side(style='thin'), 
-                            right=Side(style='thin'), 
-                            top=Side(style='thin'), 
-                            bottom=Side(style='thin'))
-        
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for header in headers:
-                if header in existing_headers:
-                    cell = sheet.cell(row=row_idx, column=existing_headers[header])
-                    cell.border = thin_border
-        
-        workbook.save(excel_file)
         
         
 class SHPProcessor:
@@ -225,29 +182,78 @@ class SHPProcessor:
         self.invalid_elements = []
         self.load_layers()
     
+    
     def load_layers(self):
-        '''
-        Load the SHP layers, parse them and store the parsers in a list
+        """
+        Load the SHP layers, parse them, and store the parsers in a list.
         :return: None
-        '''
+        """
+        QgsMessageLog.logMessage("Starting to load layers.", "StalpiAssist", level=Qgis.Info)
+        
         for layer_name, layer in self.layers.items():
-            match layer_name.lower():
-                case "LINIE_JT": 
-                    parser = IgeaLinieParser(layer)
-                case "STALP_XML_":
-                    parser = IgeaStalpParser(layer)
-                case "BRANSAMENT_XML_":
-                    parser = IgeaBransamentParser(layer)
-                case "GRUP_MASURA_XML_":
-                    parser = IgeaGrupMasuraParser(layer)
-                case "DESCHIDERI_XML_":
-                    parser = IgeaDeschidereParser(layer)
-                case "FIRIDA_XML_":
-                    parser = IgeaFiridaParser(layer)
-                case "TRONSON_predare_xml":
-                    parser = IgeaTronsonParser(layer)
+            try:
+                QgsMessageLog.logMessage(f"Processing layer: {layer_name}", "StalpiAssist", level=Qgis.Info)
+                parser = None  # Initialize parser
                 
-            parser.parse()
-            self.parsers.append(parser)
-            QgsMessageLog.logMessage(f"Layer '{layer_name}' parsed successfully.", "StalpiAssist", level=Qgis.Info)
-            QgsMessageLog.logMessage(f"Parser data: {parser.get_data()}", "StalpiAssist", level=Qgis.Info)
+                match layer_name.lower():
+                    case "linie_jt": 
+                        parser = IgeaLinieParser(layer)
+                    case "stalp_xml_":
+                        parser = IgeaStalpParser(layer)
+                    case "bransament_xml_":
+                        parser = IgeaBransamentParser(layer)
+                    case "grup_masura_xml_":
+                        parser = IgeaGrupMasuraParser(layer)
+                    case "deschideri_xml_":
+                        parser = IgeaDeschidereParser(layer)
+                    case "firida_xml_":
+                        parser = IgeaFiridaParser(layer)
+                    case "tronson_predare_xml":
+                        parser = IgeaTronsonParser(layer)
+                    case _:
+                        QgsMessageLog.logMessage(
+                            f"Unknown layer type: {layer_name}. Skipping this layer.", 
+                            "StalpiAssist", 
+                            level=Qgis.Warning
+                        )
+                        continue
+                
+                if parser is None:
+                    raise ValueError(f"No parser found for layer: {layer_name}")
+                
+                QgsMessageLog.logMessage(
+                    f"Layer '{layer_name}' matched with parser: {parser.__class__.__name__}. Parsing now.",
+                    "StalpiAssist", 
+                    level=Qgis.Info
+                )
+                
+                # Debugging: Ensure the layer data is loaded before parsing
+                if not layer.isValid():
+                    raise ValueError(f"Layer '{layer_name}' is invalid or could not be loaded.")
+                
+                parser.parse()  # Parse the layer
+                self.parsers.append(parser)  # Add the parser to the list
+            
+            except ValueError as ve:
+                QgsMessageLog.logMessage(
+                    f"ValueError processing layer '{layer_name}': {str(ve)}", 
+                    "StalpiAssist", 
+                    level=Qgis.Warning
+                )
+            except AttributeError as ae:
+                QgsMessageLog.logMessage(
+                    f"AttributeError processing layer '{layer_name}': {str(ae)}", 
+                    "StalpiAssist", 
+                    level=Qgis.Warning
+                )
+            except Exception as e:
+                QgsMessageLog.logMessage(
+                    f"Error processing layer '{layer_name}': {str(e)}", 
+                    "StalpiAssist", 
+                    level=Qgis.Critical
+                )
+        
+        QgsMessageLog.logMessage("Finished loading layers.", "StalpiAssist", level=Qgis.Info)
+        
+        
+

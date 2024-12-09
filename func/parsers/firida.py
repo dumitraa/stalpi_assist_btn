@@ -1,10 +1,11 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
+import pandas as pd
 
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
-                 class_id_inst_sup, id_inst_sup, desc_inst_sup, nr_crt_inst_sup, jud, prim, loc, tip_str, 
+                 class_id_inst_sup, id_inst_sup, nr_crt_inst_sup, jud, prim, loc, tip_str, 
                  street, nr, etaj, rol_firi, tip_firi_ret, tip_firi_br, ampl, mat, lim_prop, 
                  def_firi, nr_cir, an_func, alt, geo, sursa_coord, data_coord, long, lat, 
                  x_stereo_70, y_stereo_70, z_stereo_70):
@@ -18,7 +19,6 @@ class FiridaJT:
         self.nr_crt_loc = nr_crt_loc
         self.class_id_inst_sup = class_id_inst_sup
         self.id_inst_sup = id_inst_sup
-        self.desc_inst_sup = desc_inst_sup
         self.nr_crt_inst_sup = nr_crt_inst_sup
         self.jud = jud
         self.prim = prim
@@ -89,6 +89,44 @@ class IgeaFiridaParser:
             "Sursa coordonate": "sursa_coord",
             "Data actualizarii coordonatelor": "data_coord"
         }
+        
+        self.qgis_mapping = {
+            "CLASS_ID": "CLASS_ID",
+            "ID_BDI": "ID_BDI",
+            "NR_CRT": "NR_CRT",
+            "IDEN": "IDEN",
+            "CLASS_ID_L": "CLASS_ID_LOC",
+            "ID_LOC": "ID_LOC",
+            "NR_CRT_LOC": "NR_CRT_LOC",
+            "CLASS_ID_I": "CLASS_ID_INST_SUP",
+            "ID_INST_SU": "ID_INST_SUP",
+            "NR CRT INS": "NR_CRT_INST_SUP",
+            "JUD": "JUD",
+            "PRIM": "PRIM",
+            "LOC": "LOC",
+            "TIP_STR": "TIP_STR",
+            "STR": "STR",
+            "NR": "NR",
+            "ETAJ": "ETAJ",
+            "ROL_FIRI": "ROL_FIRI",
+            "TIP_FIRI_R": "TIP_FIRI_RET",
+            "TIP_FIRI_B": "TIP_FIRI_BR",
+            "AMPL": "AMPL",
+            "MAT": "MAT",
+            "LIM_PROP": "LIM_PROP",
+            "DEF_FIRI": "DEF_FIRI",
+            "NR_CIR": "NR_CIR",
+            "AN_FUNC": "AN_FUNC",
+            "ALT": "ALT",
+            "GEO": "GEO",
+            "SURSA_COOR": "SURSA_COORD",
+            "DATA_COOR": "DATA_COORD",
+            "LONG": "LONG",
+            "LAT": "LAT",
+            "X_STEREO_7": "X_STEREO_70",
+            "Y_STEREO_7": "Y_STEREO_70",
+            "Z_STEREO_7": "Z_STEREO_70"
+        }
 
     def parse(self):
         if not self.vector_layer.isValid():
@@ -101,13 +139,12 @@ class IgeaFiridaParser:
                 id_bdi = feature['ID_BDI'],
                 nr_crt = feature['NR_CRT'],
                 iden = feature['IDEN'],
-                class_id_loc = feature['CLASS_ID_LOC'],
+                class_id_loc = feature['CLASS_ID_L'],
                 id_loc = feature['ID_LOC'],
                 nr_crt_loc = feature['NR_CRT_LOC'],
-                class_id_inst_sup = feature['CLASS_ID_INST_SUP'],
-                id_inst_sup = feature['ID_INST_SUP'],
-                desc_inst_sup = feature['DESC_INST_SUP'],
-                nr_crt_inst_sup = feature['NR_CRT_INST_SUP'],
+                class_id_inst_sup = feature['CLASS_ID_I'],
+                id_inst_sup = feature['ID_INST_SU'],
+                nr_crt_inst_sup = feature['NR_CRT_INS'],
                 jud = feature['JUD'],
                 prim = feature['PRIM'],
                 loc = feature['LOC'],
@@ -116,8 +153,8 @@ class IgeaFiridaParser:
                 nr = feature['NR'],
                 etaj = feature['ETAJ'],
                 rol_firi = feature['ROL_FIRI'],
-                tip_firi_ret = feature['TIP_FIRI_RET'],
-                tip_firi_br = feature['TIP_FIRI_BR'],
+                tip_firi_ret = feature['TIP_FIRI_R'],
+                tip_firi_br = feature['TIP_FIRI_B'],
                 ampl = feature['AMPL'],
                 mat = feature['MAT'],
                 lim_prop = feature['LIM_PROP'],
@@ -126,17 +163,20 @@ class IgeaFiridaParser:
                 an_func = feature['AN_FUNC'],
                 alt = feature['ALT'],
                 geo = feature['GEO'],
-                sursa_coord = feature['SURSA_COORD'],
+                sursa_coord = feature['SURSA_COOR'],
                 data_coord = feature['DATA_COORD'],
                 long = feature['LONG'],
                 lat = feature['LAT'],
-                x_stereo_70 = feature['X_STEREO_70'],
-                y_stereo_70 = feature['Y_STEREO_70'],
-                z_stereo_70 = feature['Z_STEREO_70']
+                x_stereo_70 = feature['X_STEREO_7'],
+                y_stereo_70 = feature['Y_STEREO_7'],
+                z_stereo_70 = feature['Z_STEREO_7']
             )
             self.firide.append(firida_data)
 
-    def get_firide(self):
+    def get_name(self):
+        return "FIRIDA_XML_"
+
+    def get_data(self):
         return self.firide
     
     def write_to_excel_sheet(self, excel_file, split=False, done_split=False):
@@ -153,6 +193,7 @@ class IgeaFiridaParser:
                     value = f"{prefix} {getattr(firida, attr, '')}"
                 else:
                     value = getattr(firida, mapping, "")
+                value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
 

@@ -65,6 +65,33 @@ class IgeaTronsonParser:
             "Observatii": "obs"
         }
         
+        self.qgis_mapping = {
+            "CLASS_ID": "CLASS_ID",
+            "ID_BDI": "ID_BDI",
+            "NR_CRT": "NR_CRT",
+            "DENUM": "DENUM",
+            "PROP": "PROP",
+            "CLASS_ID_L": "CLASS_ID_LOC",
+            "ID_LOC": "ID_LOC",
+            "NR_CRT_LOC": "NR_CRT_LOC",
+            "CLASS_ID_I": "CLASS_ID_INC_TR",
+            "ID_INC_TR": "ID_INC_TR",
+            "NR_CRT_INC": "NR_CRT_INC_TR",
+            "CLASS_ID_F": "CLASS_ID_FIN_TR",
+            "ID_FIN_TR": "ID_FIN_TR",
+            "NR_CRT_FIN": "NR_CRT_FIN_TR",
+            "TIP_TR": "TIP_TR",
+            "TIP_COND": "TIP_COND",
+            "LUNG_TR": "LUNG_TR",
+            "GEO": "GEO",
+            "SURSA_COOR": "SURSA_COORD",
+            "DATA_COORD": "DATA_COORD",
+            "UNIT_LOG_I": "UNIT_LOG_INT",
+            "S_UNIT_LOG": "S_UNIT_LOG",
+            "POST_LUC": "POST_LUC",
+            "OBS": "OBS"
+        }
+        
 
     def parse(self):
         if not self.vector_layer.isValid():
@@ -73,34 +100,37 @@ class IgeaTronsonParser:
         for feature in self.vector_layer.getFeatures():
             tronson_data = TronsonJT(
                 id = feature.id(),
-                class_ud = feature['CLASS_ID'],
+                class_id = feature['CLASS_ID'],
                 id_bdi = feature['ID_BDI'],
                 nr_crt = feature['NR_CRT'],
                 denum = feature['DENUM'],
                 prop = feature['PROP'],
-                class_id_loc = feature['CLASS_ID_LOC'],
+                class_id_loc = feature['CLASS_ID_L'],
                 id_loc = feature['ID_LOC'],
                 nr_crt_loc = feature['NR_CRT_LOC'],
-                class_id_inc_tr = feature['CLASS_ID_INC_TR'],
+                class_id_inc_tr = feature['CLASS_ID_I'],
                 id_inc_tr = feature['ID_INC_TR'],
-                nr_crt_inc_tr = feature['NR_CRT_INC_TR'],
-                class_id_fin_tr = feature['CLASS_ID_FIN_TR'],
+                nr_crt_inc_tr = feature['NR_CRT_INC'],
+                class_id_fin_tr = feature['CLASS_ID_F'],
                 id_fin_tr = feature['ID_FIN_TR'],
-                nr_crt_fin_tr = feature['NR_CRT_FIN_TR'],
+                nr_crt_fin_tr = feature['NR_CRT_FIN'],
                 tip_tr = feature['TIP_TR'],
                 tip_cond = feature['TIP_COND'],
                 lung_tr = feature['LUNG_TR'],
                 geo = feature['GEO'],
-                sursa_coord = feature['SURSA_COORD'],
+                sursa_coord = feature['SURSA_COOR'],
                 data_coord = feature['DATA_COORD'],
-                unit_log_int = feature['UNIT_LOG_INT'],
+                unit_log_int = feature['UNIT_LOG_I'],
                 s_unit_log = feature['S_UNIT_LOG'],
                 post_luc = feature['POST_LUC'],
                 obs = feature['OBS']
             )
             self.tronsoane.append(tronson_data)
+            
+    def get_name(self):
+        return "TRONSON_predare_xml"
 
-    def get_tronsoane(self):
+    def get_data(self):
         return self.tronsoane
     
     def write_to_excel_sheet(self, excel_file):
@@ -119,6 +149,7 @@ class IgeaTronsonParser:
                     value = f"{prefix} {getattr(tronson, attr, '')}"
                 else:
                     value = getattr(tronson, mapping, "")
+                value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
         
