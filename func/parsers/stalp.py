@@ -207,10 +207,10 @@ class IgeaStalpParser:
             "LAT": "LAT",
             "LONG": "LONG",
             "ALT": "ALT",
-            "X_STEREO_7": "X_STEREO_70",
-            "Y_STEREO_7": "Y_STEREO_70",
-            "Z_STEREO_7": "Z_STEREO_70",
-            "SURSA_COOR": "SURSA_COORD",
+            "X_STEREO_70": "X_STEREO_70",
+            "Y_STEREO_70": "Y_STEREO_70",
+            "Z_STEREO_70": "Z_STEREO_70",
+            "SURSA_COORD": "SURSA_COORD",
             "DATA_COORD": "DATA_COORD",
             "OBS": "OBS",
             "IMG_FILE_1": "IMG_FILE_1",
@@ -291,10 +291,10 @@ class IgeaStalpParser:
                 lat=feature["LAT"],
                 long=feature["LONG"],
                 alt=feature["ALT"],
-                x_stereo_70=feature["X_STEREO_7"],
-                y_stereo_70=feature["Y_STEREO_7"],
-                z_stereo_70=feature["Z_STEREO_7"],
-                sursa_coord=feature["SURSA_COOR"],
+                x_stereo_70=feature["X_STEREO_70"],
+                y_stereo_70=feature["Y_STEREO_70"],
+                z_stereo_70=feature["Z_STEREO_70"],
+                sursa_coord=feature["SURSA_COORD"],
                 data_coord=feature["DATA_COORD"],
                 obs=feature["OBS"],
                 img_file_1=feature["IMG_FILE_1"],
@@ -334,11 +334,9 @@ class IgeaStalpParser:
         workbook = load_workbook(excel_file)
         sheet = workbook["STÂLP"]
         
-        start_row = 2
-        existing_headers = {
-            sheet.cell(row=1, column=col_idx).value: col_idx
-            for col_idx in range(1, sheet.max_column + 1)
-        }
+        start_row = sheet.max_row + 1
+        header_row = sheet.max_row - 1
+        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
         
         # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):

@@ -1,5 +1,5 @@
 """
-Model exported as python.
+Model exported as python
 Name : 001 TRONSON_JT
 Group : LEA JT
 With QGIS : 33802
@@ -10,12 +10,48 @@ from qgis.core import QgsProcessingAlgorithm # type: ignore
 from qgis.core import QgsProcessingMultiStepFeedback # type: ignore
 from qgis.core import QgsProcessingParameterVectorLayer # type: ignore
 from qgis.core import QgsProcessingParameterFeatureSink # type: ignore
+from qgis.core import QgsExpressionFunction, QgsExpression # type: ignore
+from qgis.core import QgsGeometry, QgsWkbTypes # type: ignore
+from qgis.core import QgsGeometry, QgsWkbTypes # type: ignore
+
 import processing # type: ignore
 
 
 class TronsonJTModel(QgsProcessingAlgorithm):
+    def register_functions(self):
+        @QgsExpressionFunction(
+            "round_wkt_coordinates",  # Name in QGIS expressions
+            "Custom",  # Group name
+            "Rounds WKT geometry coordinates to a given precision"  # Description
+        )
+        def round_wkt_coordinates(values):
+            def format_point(point):
+                return f"{round(point.x(), 4):.4f} {round(point.y(), 4):.4f}"
+
+            geometry = values[0]  # Get the geometry from the input
+            if isinstance(geometry, QgsGeometry):
+                if geometry.isMultipart():
+                    if geometry.type() == QgsWkbTypes.LineGeometry:
+                        parts = [
+                            "(" + ", ".join(format_point(point) for point in line) + ")"
+                            for line in geometry.asMultiPolyline()
+                        ]
+                        wkt = f"MULTILINESTRING ({', '.join(parts)})"
+                    else:
+                        wkt = geometry.asWkt()  # For other geometry types
+                else:
+                    if geometry.type() == QgsWkbTypes.LineGeometry:
+                        points = ", ".join(format_point(point) for point in geometry.asPolyline())
+                        wkt = f"LINESTRING ({points})"
+                    else:
+                        wkt = geometry.asWkt()  # For other geometry types
+                return wkt
+            return None  # Return None if input is invalid
+
+        QgsExpression.registerFunction(round_wkt_coordinates)
 
     def initAlgorithm(self, config=None):
+        self.register_functions()
         self.addParameter(QgsProcessingParameterVectorLayer('linie_jt_introduse', 'LINIE_JT introduse', types=[QgsProcessing.TypeVector], defaultValue=None))
         self.addParameter(QgsProcessingParameterVectorLayer('stalpi_desenati', 'STALPI DESENATI', types=[QgsProcessing.TypeVectorPoint], defaultValue=None))
         self.addParameter(QgsProcessingParameterVectorLayer('tronson_desenat', 'TRONSON DESENAT', types=[QgsProcessing.TypeVectorLine], defaultValue=None))

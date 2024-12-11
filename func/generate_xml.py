@@ -123,13 +123,15 @@ class GenerateXMLWorker(QThread):
                     # Define paths
                     xml_template_path = self.plugin_path(f"templates/{safe_layer_name}.xml")
                     xml_path = os.path.join(self.base_dir, f"{safe_layer_name}.xml")
+                    
+                    # QgsMessageLog.logMessage(f"Processing layer '{layer_name} - {safe_layer_name}'.", "StalpiAssist", level=Qgis.Info)
 
                     # Use XML template if available
                     if os.path.exists(xml_template_path):
-                        QgsMessageLog.logMessage(f"Found template for '{layer_name} - {safe_layer_name} with path {xml_template_path}'. Populating XML.", level=Qgis.Info)
+                        # QgsMessageLog.logMessage(f"Found template for '{layer_name} - {safe_layer_name} with path {xml_template_path}'. Populating XML.", level=Qgis.Info)
                         self.populate_xml_template(xml_template_path, xml_path, parser)
                     else:
-                        QgsMessageLog.logMessage(f"No template found for '{layer_name} - {safe_layer_name} with path {xml_template_path}'. Exporting default XML.", level=Qgis.Warning)
+                        # QgsMessageLog.logMessage(f"No template found for '{layer_name} - {safe_layer_name} with path {xml_template_path}'. Exporting default XML.", level=Qgis.Warning)
                         self.export_to_default_xml(xml_path, parser, safe_layer_name)
                     
                     progress += 1

@@ -192,7 +192,7 @@ class SHPProcessor:
         
         for layer_name, layer in self.layers.items():
             try:
-                QgsMessageLog.logMessage(f"Processing layer: {layer_name}", "StalpiAssist", level=Qgis.Info)
+                # QgsMessageLog.logMessage(f"Processing layer: {layer_name}", "StalpiAssist", level=Qgis.Info)
                 parser = None  # Initialize parser
                 
                 match layer_name.lower():
@@ -211,18 +211,17 @@ class SHPProcessor:
                     case "tronson_predare_xml":
                         parser = IgeaTronsonParser(layer)
                     case _:
-                        QgsMessageLog.logMessage(
-                            f"Unknown layer type: {layer_name}. Skipping this layer.", 
-                            "StalpiAssist", 
-                            level=Qgis.Warning
-                        )
+                        # QgsMessageLog.logMessage(
+                        #     f"Unknown layer type: {layer_name}. Skipping this layer.", 
+                        #     "StalpiAssist", 
+                        #     level=Qgis.Warning
+                        # )
                         continue
                 
                 if parser is None:
                     raise ValueError(f"No parser found for layer: {layer_name}")
                 
                 QgsMessageLog.logMessage(
-                    f"Layer '{layer_name}' matched with parser: {parser.__class__.__name__}. Parsing now.",
                     "StalpiAssist", 
                     level=Qgis.Info
                 )

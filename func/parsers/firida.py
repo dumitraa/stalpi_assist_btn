@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
 import pandas as pd
+from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
@@ -95,11 +96,11 @@ class IgeaFiridaParser:
             "ID_BDI": "ID_BDI",
             "NR_CRT": "NR_CRT",
             "IDEN": "IDEN",
-            "CLASS_ID_L": "CLASS_ID_LOC",
+            "CLASS_ID_LOC": "CLASS_ID_LOC",
             "ID_LOC": "ID_LOC",
             "NR_CRT_LOC": "NR_CRT_LOC",
-            "CLASS_ID_I": "CLASS_ID_INST_SUP",
-            "ID_INST_SU": "ID_INST_SUP",
+            "CLASS_ID_LOC": "CLASS_ID_INST_SUP",
+            "ID_INST_SUP": "ID_INST_SUP",
             "NR CRT INS": "NR_CRT_INST_SUP",
             "JUD": "JUD",
             "PRIM": "PRIM",
@@ -109,8 +110,8 @@ class IgeaFiridaParser:
             "NR": "NR",
             "ETAJ": "ETAJ",
             "ROL_FIRI": "ROL_FIRI",
-            "TIP_FIRI_R": "TIP_FIRI_RET",
-            "TIP_FIRI_B": "TIP_FIRI_BR",
+            "TIP_FIRI_RET": "TIP_FIRI_RET",
+            "TIP_FIRI_BR": "TIP_FIRI_BR",
             "AMPL": "AMPL",
             "MAT": "MAT",
             "LIM_PROP": "LIM_PROP",
@@ -119,13 +120,13 @@ class IgeaFiridaParser:
             "AN_FUNC": "AN_FUNC",
             "ALT": "ALT",
             "GEO": "GEO",
-            "SURSA_COOR": "SURSA_COORD",
+            "SURSA_COORD": "SURSA_COORD",
             "DATA_COOR": "DATA_COORD",
             "LONG": "LONG",
             "LAT": "LAT",
-            "X_STEREO_7": "X_STEREO_70",
-            "Y_STEREO_7": "Y_STEREO_70",
-            "Z_STEREO_7": "Z_STEREO_70"
+            "X_STEREO_70": "X_STEREO_70",
+            "Y_STEREO_70": "Y_STEREO_70",
+            "Z_STEREO_70": "Z_STEREO_70"
         }
 
     def parse(self):
@@ -139,12 +140,12 @@ class IgeaFiridaParser:
                 id_bdi = feature['ID_BDI'],
                 nr_crt = feature['NR_CRT'],
                 iden = feature['IDEN'],
-                class_id_loc = feature['CLASS_ID_L'],
+                class_id_loc = feature['CLASS_ID_LOC'],
                 id_loc = feature['ID_LOC'],
                 nr_crt_loc = feature['NR_CRT_LOC'],
-                class_id_inst_sup = feature['CLASS_ID_I'],
-                id_inst_sup = feature['ID_INST_SU'],
-                nr_crt_inst_sup = feature['NR_CRT_INS'],
+                class_id_inst_sup = feature['CLASS_ID_LOC'],
+                id_inst_sup = feature['ID_INST_SUP'],
+                nr_crt_inst_sup = feature['NR_CRT_INST_SUP'],
                 jud = feature['JUD'],
                 prim = feature['PRIM'],
                 loc = feature['LOC'],
@@ -153,8 +154,8 @@ class IgeaFiridaParser:
                 nr = feature['NR'],
                 etaj = feature['ETAJ'],
                 rol_firi = feature['ROL_FIRI'],
-                tip_firi_ret = feature['TIP_FIRI_R'],
-                tip_firi_br = feature['TIP_FIRI_B'],
+                tip_firi_ret = feature['TIP_FIRI_RET'],
+                tip_firi_br = feature['TIP_FIRI_BR'],
                 ampl = feature['AMPL'],
                 mat = feature['MAT'],
                 lim_prop = feature['LIM_PROP'],
@@ -163,13 +164,13 @@ class IgeaFiridaParser:
                 an_func = feature['AN_FUNC'],
                 alt = feature['ALT'],
                 geo = feature['GEO'],
-                sursa_coord = feature['SURSA_COOR'],
+                sursa_coord = feature['SURSA_COORD'],
                 data_coord = feature['DATA_COORD'],
                 long = feature['LONG'],
                 lat = feature['LAT'],
-                x_stereo_70 = feature['X_STEREO_7'],
-                y_stereo_70 = feature['Y_STEREO_7'],
-                z_stereo_70 = feature['Z_STEREO_7']
+                x_stereo_70 = feature['X_STEREO_70'],
+                y_stereo_70 = feature['Y_STEREO_70'],
+                z_stereo_70 = feature['Z_STEREO_70']
             )
             self.firide.append(firida_data)
 
@@ -180,10 +181,12 @@ class IgeaFiridaParser:
         return self.firide
     
     def write_to_excel_sheet(self, excel_file, split=False, done_split=False):
-        print("~~~* Writing firide to Excel *~~~")
+        QgsMessageLog.logMessage("~~~* Starting to write firide to Excel *~~~", "FirideAssistant", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
+        QgsMessageLog.logMessage(f"Headers determined: {headers}", "FirideAssistant", level=Qgis.Info)
 
+        # Collect data rows
         for firida in self.firide:
             row = []
             for header in headers:
@@ -196,35 +199,59 @@ class IgeaFiridaParser:
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
+        QgsMessageLog.logMessage(f"Collected data rows: {len(data)} rows", "FirideAssistant", level=Qgis.Info)
 
         df = pd.DataFrame(data, columns=headers)
-        workbook = load_workbook(excel_file)
+
+        # Open Excel file
+        try:
+            workbook = load_workbook(excel_file)
+            QgsMessageLog.logMessage(f"Opened workbook: {excel_file}", "FirideAssistant", level=Qgis.Info)
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error opening workbook: {e}", "FirideAssistant", level=Qgis.Critical)
+            return
 
         if split:
             df_retea = df[df['Rolul firidei'].str.contains('retea', na=False)]
             df_bransament = df[df['Rolul firidei'].str.contains('bransament', na=False)]
             sheets = {'FIRIDA RETEA': df_retea, 'FIRIDA BRANSAMENT': df_bransament}
+            QgsMessageLog.logMessage("Splitting data into 'FIRIDA RETEA' and 'FIRIDA BRANSAMENT' sheets", "FirideAssistant", level=Qgis.Info)
         else:
             sheets = {'FIRIDA': df}
+            QgsMessageLog.logMessage("Using single sheet 'FIRIDA'", "FirideAssistant", level=Qgis.Info)
 
         for sheet_name, df_sheet in sheets.items():
             if sheet_name in workbook.sheetnames:
                 sheet = workbook[sheet_name]
+                QgsMessageLog.logMessage(f"Using existing sheet: {sheet_name}", "FirideAssistant", level=Qgis.Info)
             else:
                 sheet = workbook.create_sheet(sheet_name)
+                QgsMessageLog.logMessage(f"Created new sheet: {sheet_name}", "FirideAssistant", level=Qgis.Info)
 
-            start_row = 2
-            existing_headers = {sheet.cell(row=1, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1)}
+            # Determine header and start rows
+            start_row = sheet.max_row + 1
+            header_row = sheet.max_row - 1
+            existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
+            QgsMessageLog.logMessage(f"Existing headers in sheet '{sheet_name}': {existing_headers} - START ROW IS {start_row}, HEADER_ROW IS {header_row}", "FirideAssistant", level=Qgis.Info)
 
+            # Ensure headers exist
+            for idx, header in enumerate(headers, start=1):
+                if header not in existing_headers:
+                    sheet.cell(row=header_row, column=idx, value=header)
+                    existing_headers[header] = idx
+                    QgsMessageLog.logMessage(f"HEADER {header} NOT FOUND AT INDEX {idx}", "FirideAssistant", level=Qgis.Info)
+
+            # Write data rows
             for row_idx, row_data in enumerate(df_sheet.itertuples(index=False, name=None), start=start_row):
                 for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                    if header.strip(" ") in existing_headers:
-                        sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
+                    col_idx = existing_headers.get(header, col_idx)  # Fallback to index
+                    sheet.cell(row=row_idx, column=col_idx, value=cell_value)
 
+            # Add borders
             thin_border = Border(left=Side(style='thin'),
-                                 right=Side(style='thin'),
-                                 top=Side(style='thin'),
-                                 bottom=Side(style='thin'))
+                                right=Side(style='thin'),
+                                top=Side(style='thin'),
+                                bottom=Side(style='thin'))
 
             for row_idx, row_data in enumerate(df_sheet.itertuples(index=False, name=None), start=start_row):
                 for col_idx, header in enumerate(headers, start=1):
@@ -232,7 +259,12 @@ class IgeaFiridaParser:
                         cell = sheet.cell(row=row_idx, column=existing_headers[header])
                         cell.border = thin_border
 
-        workbook.save(excel_file)
-        
+        try:
+            workbook.save(excel_file)
+            QgsMessageLog.logMessage(f"Workbook saved successfully to {excel_file}", "FirideAssistant", level=Qgis.Info)
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error saving workbook: {e}", "FirideAssistant", level=Qgis.Critical)
+
         if not done_split:
+            QgsMessageLog.logMessage("Splitting sheets - Calling function recursively", "FirideAssistant", level=Qgis.Info)
             self.write_to_excel_sheet(excel_file, split=True, done_split=True)

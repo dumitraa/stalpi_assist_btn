@@ -26,7 +26,7 @@ from pathlib import Path
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication # type: ignore
 from qgis.PyQt.QtGui import QIcon # type: ignore
 from qgis.PyQt.QtWidgets import QAction # type: ignore
-from qgis.core import QgsMessageLog, QgsProcessingFeedback, QgsProcessingContext, Qgis # type: ignore
+from qgis.core import QgsMessageLog, QgsProcessingFeedback, QgsProcessingContext, Qgis, QgsProject # type: ignore
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
 
 import os
@@ -255,14 +255,15 @@ class StalpiAssist:
                 
             self.feedback = QgsProcessingFeedback()
             self.context = QgsProcessingContext()
+            self.context.setProject(QgsProject.instance())
         
     def run_tronson_model(self):
         """Run Tronson model."""
         algorithm = TronsonJTModel()
         params = {
-            "linie_jt_introduse": self.layers["LINIE_JT"],
-            "stalpi_desenati": self.layers["STALP_JT"],
-            "tronson_desenat": self.layers["TRONSON_JT"],
+            "linie_jt_introduse": "LINIE_JT",
+            "stalpi_desenati": "STALP_JT",
+            "tronson_desenat": "TRONSON_JT",
             "TRONSON_XML_": os.path.join(self.base_dir, f"TRONSON_XML_.shp")
         }
         self.helper.run_algorithm(algorithm, params, self.context, self.feedback, "TRONSON_XML_")
@@ -271,9 +272,9 @@ class StalpiAssist:
     def run_brans_model(self):
         algorithm = BransamentModel()
         params = {
-            "brans_firi_desenate": self.layers["BRANS_FIRI_GRPM_JT"],
-            "fb_pe_c_les": self.layers["FB pe C LES"],
-            "linie_jt_introduse": self.layers["LINIE_JT"],
+            "brans_firi_desenate": "BRANS_FIRI_GRPM_JT",
+            "fb_pe_c_les": "FB pe C LES",
+            "linie_jt_introduse": "LINIE_JT",
             "BRANSAMENT_XML_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.shp"),
             "GRUP_MASURA_XML_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
             "FIRIDA_XML_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
@@ -284,8 +285,8 @@ class StalpiAssist:
     def run_stalp_model(self):
         algorithm = StalpJTModel()
         params = {
-            "poze_geotag": self.layers["poze"],
-            "stalp_in_lucru": self.layers["STALP_JT"],
+            "poze_geotag": "poze",
+            "stalp_in_lucru": "STALP_JT",
             "STALP_XML_": os.path.join(self.base_dir, f"STALP_XML_.shp")
         }
         self.helper.run_algorithm(algorithm, params, self.context, self.feedback, "STALP_XML_") 
@@ -294,8 +295,8 @@ class StalpiAssist:
     def run_deschideri_model(self):
         algorithm = DeschideriJTModel()
         params = {
-            'stalpi_desenati': self.layers['STALP_JT'],
-            'tronson_jt': self.layers['TRONSON_XML_'],
+            'stalpi_desenati': 'STALP_JT',
+            'tronson_jt': 'TRONSON_XML_',
             'DESCHIDERI_XML_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
             'SCR_DWG': os.path.join(self.base_dir, f"SCR_DWG.shp"),
         }
@@ -305,7 +306,7 @@ class StalpiAssist:
     def run_tronsoane_duble_model(self):
         algorithm = TronsonAranjatModel()
         params = {
-            'tronson_aranjat': self.layers['TRONSON_ARANJAT'],
+            'tronson_aranjat': 'TRONSON_ARANJAT',
             'TRONSON_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
         }
         self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["TRONSON_predare_xml"])

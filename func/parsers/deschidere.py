@@ -92,7 +92,7 @@ class IgeaDeschidereParser:
             "NR_CRT_T_5": "NR_CRT_TR_JT6",
             "GEO": "GEO",
             "LUNG": "LUNG",
-            "SURSA_COOR": "SURSA_COORD",
+            "SURSA_COORD": "SURSA_COORD",
             "DATA_COORD": "DATA_COORD"
         }
             
@@ -125,13 +125,13 @@ class IgeaDeschidereParser:
                 nr_crt_tr_jt6=feature["NR_CRT_T_5"],
                 geo=feature["GEO"],
                 lung=feature["LUNG"],
-                sursa_coord=feature["SURSA_COOR"],
+                sursa_coord=feature["SURSA_COORD"],
                 data_coord=feature["DATA_COORD"]
             )
             self.deschideri.append(deschidere_data)
     
     def get_name(self):
-        return "STALP_XML_"
+        return "DESCHIDERI_XML_"
             
     def get_data(self):
         return self.deschideri
@@ -160,11 +160,10 @@ class IgeaDeschidereParser:
         workbook = load_workbook(excel_file)
         sheet = workbook["LINIE_JOASA_TENSIUNE"]
         
-        start_row = 2
-        existing_headers = {
-            sheet.cell(row=1, column=col_idx).value: col_idx
-            for col_idx in range(1, sheet.max_column + 1)
-        }
+        #TODO: the start row is the row below the last written row
+        start_row = sheet.max_row + 1
+        header_row = sheet.max_row - 1
+        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
         
         # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):

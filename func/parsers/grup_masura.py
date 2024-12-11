@@ -33,7 +33,6 @@ class IgeaGrupMasuraParser:
         self.vector_layer = vector_layer
         self.grupuri: List[GrupMasuraJT] = []
         
-        # map names - Nr.crt	Denumire	Descrierea BDI	Nr.crt_Locatia	Locatia	ID_Descrierea instalatiei uperioare	Descrierea instalatiei uperioare	Judet	Primarie	Localitate	Tip strada	Strada	nr./ scara	Etaj	Apartament
 
         self.mapping = {
             "Nr.crt": "nr_crt",
@@ -58,12 +57,12 @@ class IgeaGrupMasuraParser:
             "ID_BDI": "ID_BDI",
             "NR_CRT": "NR_CRT",
             "DENUM": "DENUM",
-            "CLASS_ID_L": "CLASS_ID_LOC",
+            "CLASS_ID_LOC": "CLASS_ID_LOC",
             "ID_LOC": "ID_LOC",
             "NR_CRT_LOC": "NR_CRT_LOC",
-            "CLASS_ID_I": "CLASS_ID_INST_SUP",
-            "ID_INST_SU": "ID_INST_SUP",
-            "NR_CRT_INS": "NR_CRT_INST_SUP",
+            "CLASS_ID_LOC": "CLASS_ID_INST_SUP",
+            "ID_INST_SUP": "ID_INST_SUP",
+            "NR_CRT_INST_SUP": "NR_CRT_INST_SUP",
             "JUD": "JUD",
             "PRIM": "PRIM",
             "LOC": "LOC",
@@ -85,12 +84,12 @@ class IgeaGrupMasuraParser:
                 id_bdi=feature["ID_BDI"],
                 nr_crt=feature["NR_CRT"],
                 denum=feature["DENUM"],
-                class_id_loc=feature["CLASS_ID_L"],
+                class_id_loc=feature["CLASS_ID_LOC"],
                 id_loc=feature["ID_LOC"],
                 nr_crt_loc=feature["NR_CRT_LOC"],
-                class_id_inst_sup=feature["CLASS_ID_I"],
-                id_inst_sup=feature["ID_INST_SU"],
-                nr_crt_inst_sup=feature["NR_CRT_INS"],
+                class_id_inst_sup=feature["CLASS_ID_LOC"],
+                id_inst_sup=feature["ID_INST_SUP"],
+                nr_crt_inst_sup=feature["NR_CRT_INST_SUP"],
                 jud=feature["JUD"],
                 prim=feature["PRIM"],
                 loc=feature["LOC"],
@@ -132,11 +131,9 @@ class IgeaGrupMasuraParser:
         workbook = load_workbook(excel_file)
         sheet = workbook["GRUP_MASURA"]
         
-        start_row = 2
-        existing_headers = {
-            sheet.cell(row=1, column=col_idx).value: col_idx
-            for col_idx in range(1, sheet.max_column + 1)
-        }
+        start_row = sheet.max_row + 1
+        header_row = sheet.max_row - 1
+        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
         
         # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):

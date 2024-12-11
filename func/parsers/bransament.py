@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
+from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 
 class BransamentJT():
@@ -70,7 +71,7 @@ class IgeaBransamentParser:
             "ID_BDI": "ID_BDI",
             "NR_CRT": "NR_CRT",
             "DENUM": "DENUM",
-            "CLASS_ID_L": "CLASS_ID_LOC",
+            "CLASS_ID_LOC": "CLASS_ID_LOC",
             "ID_LOC": "ID_LOC",
             "NR_CRT_LOC": "NR_CRT_LOC",
             "CLASS_ID_P": "CLASS_ID_PLC_BR",
@@ -86,7 +87,7 @@ class IgeaBransamentParser:
             "STR": "STR",
             "NR_IMOB": "NR_IMOB",
             "GEO": "GEO",
-            "SURSA_COOR": "SURSA_COORD",
+            "SURSA_COORD": "SURSA_COORD",
             "DATA_COORD": "DATA_COORD",
             "OBS": "OBS"
         }
@@ -103,7 +104,7 @@ class IgeaBransamentParser:
                 id_bdi=feature['ID_BDI'],
                 nr_crt=feature['NR_CRT'],
                 denum=feature['DENUM'],
-                class_id_loc=feature['CLASS_ID_L'],
+                class_id_loc=feature['CLASS_ID_LOC'],
                 id_loc=feature['ID_LOC'],
                 nr_crt_loc=feature['NR_CRT_LOC'],
                 class_id_plc_br=feature['CLASS_ID_P'],
@@ -119,7 +120,7 @@ class IgeaBransamentParser:
                 street=feature['STR'],
                 nr_imob=feature['NR_IMOB'],
                 geo=feature['GEO'],
-                sursa_coord=feature['SURSA_COOR'],
+                sursa_coord=feature['SURSA_COORD'],
                 data_coord=feature['DATA_COORD'],
                 obs=feature['OBS']
             )
@@ -132,11 +133,14 @@ class IgeaBransamentParser:
         return self.bransamente
 
     def write_to_excel_sheet(self, excel_file):
+        QgsMessageLog.logMessage("Starting to write data to Excel sheet - BRANSAMENT", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
+        QgsMessageLog.logMessage(f"Headers determined: {headers}", "StalpiAssist", level=Qgis.Info)
         
         for bransament in self.bransamente:
             row = []
+            QgsMessageLog.logMessage(f"Processing bransament: {bransament}", "StalpiAssist", level=Qgis.Info)
             for header in headers:
                 mapping = self.mapping[header]
                 if not mapping:
@@ -149,17 +153,22 @@ class IgeaBransamentParser:
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
+                
+        try:
+            workbook = load_workbook(excel_file)
+            sheet = workbook["BRANSAMENT"]
+        except Exception as e:
+            return
         
-        workbook = load_workbook(excel_file)
-        sheet = workbook["BRANSAMENT"]
-        
-        start_row = 2
-        existing_headers = {sheet.cell(row=1, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1)}
-        
+        start_row = sheet.max_row + 1
+        header_row = sheet.max_row - 1
+        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
+                
         for row_idx, row_data in enumerate(data, start=start_row):
-                for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                    if header.strip(" ") in existing_headers:
-                        sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
+            for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
+                if header.strip(" ") in existing_headers:
+                    sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
+                    QgsMessageLog.logMessage(f"Writing value '{cell_value}' at row {row_idx}, column {existing_headers[header]}", "StalpiAssist", level=Qgis.Info)
         
         thin_border = Border(left=Side(style='thin'), 
                             right=Side(style='thin'), 
@@ -172,4 +181,7 @@ class IgeaBransamentParser:
                     cell = sheet.cell(row=row_idx, column=existing_headers[header])
                     cell.border = thin_border
         
-        workbook.save(excel_file)
+        try:
+            workbook.save(excel_file)
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error saving workbook: {e}", "StalpiAssist", level=Qgis.Critical)

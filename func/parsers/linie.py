@@ -112,11 +112,9 @@ class IgeaLinieParser:
         workbook = load_workbook(excel_file)
         sheet = workbook["LINIE_JOASA_TENSIUNE"]
         
-        start_row = 2
-        existing_headers = {
-            sheet.cell(row=1, column=col_idx).value: col_idx
-            for col_idx in range(1, sheet.max_column + 1)
-        }
+        start_row = sheet.max_row + 1
+        header_row = sheet.max_row - 1
+        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
         
         # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):

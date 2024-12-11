@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
+from qgis.core import QgsMessageLog, Qgis
 
 class TronsonJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, nr_crt_loc, 
@@ -41,6 +42,7 @@ class IgeaTronsonParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.tronsoane: List[TronsonJT] = []
+        
         self.mapping = {
             "Nr. crt": "nr_crt",
             "ID": "id_bdi",
@@ -71,22 +73,22 @@ class IgeaTronsonParser:
             "NR_CRT": "NR_CRT",
             "DENUM": "DENUM",
             "PROP": "PROP",
-            "CLASS_ID_L": "CLASS_ID_LOC",
+            "CLASS_ID_LOC": "CLASS_ID_LOC",
             "ID_LOC": "ID_LOC",
             "NR_CRT_LOC": "NR_CRT_LOC",
-            "CLASS_ID_I": "CLASS_ID_INC_TR",
+            "CLASS_ID_LOC": "CLASS_ID_INC_TR",
             "ID_INC_TR": "ID_INC_TR",
-            "NR_CRT_INC": "NR_CRT_INC_TR",
-            "CLASS_ID_F": "CLASS_ID_FIN_TR",
+            "NR_CRT_INC_TR": "NR_CRT_INC_TR",
+            "CLASS_ID_FIN_TR": "CLASS_ID_FIN_TR",
             "ID_FIN_TR": "ID_FIN_TR",
-            "NR_CRT_FIN": "NR_CRT_FIN_TR",
+            "NR_CRT_FIN_TR": "NR_CRT_FIN_TR",
             "TIP_TR": "TIP_TR",
             "TIP_COND": "TIP_COND",
             "LUNG_TR": "LUNG_TR",
             "GEO": "GEO",
-            "SURSA_COOR": "SURSA_COORD",
+            "SURSA_COORD": "SURSA_COORD",
             "DATA_COORD": "DATA_COORD",
-            "UNIT_LOG_I": "UNIT_LOG_INT",
+            "UNIT_LOG_INT": "UNIT_LOG_INT",
             "S_UNIT_LOG": "S_UNIT_LOG",
             "POST_LUC": "POST_LUC",
             "OBS": "OBS"
@@ -94,8 +96,12 @@ class IgeaTronsonParser:
         
 
     def parse(self):
-        if not self.vector_layer.isValid():
-            raise ValueError("The provided layer is not valid.")
+        try:
+            if not self.vector_layer.isValid():
+                raise ValueError("The provided layer is not valid.")
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error: {e}", "StalpiAssist", level=Qgis.Critical)
+            return
 
         for feature in self.vector_layer.getFeatures():
             tronson_data = TronsonJT(
@@ -105,22 +111,22 @@ class IgeaTronsonParser:
                 nr_crt = feature['NR_CRT'],
                 denum = feature['DENUM'],
                 prop = feature['PROP'],
-                class_id_loc = feature['CLASS_ID_L'],
+                class_id_loc = feature['CLASS_ID_LOC'],
                 id_loc = feature['ID_LOC'],
                 nr_crt_loc = feature['NR_CRT_LOC'],
-                class_id_inc_tr = feature['CLASS_ID_I'],
+                class_id_inc_tr = feature['CLASS_ID_LOC'],
                 id_inc_tr = feature['ID_INC_TR'],
-                nr_crt_inc_tr = feature['NR_CRT_INC'],
-                class_id_fin_tr = feature['CLASS_ID_F'],
+                nr_crt_inc_tr = feature['NR_CRT_INC_TR'],
+                class_id_fin_tr = feature['CLASS_ID_FIN_TR'],
                 id_fin_tr = feature['ID_FIN_TR'],
-                nr_crt_fin_tr = feature['NR_CRT_FIN'],
+                nr_crt_fin_tr = feature['NR_CRT_FIN_TR'],
                 tip_tr = feature['TIP_TR'],
                 tip_cond = feature['TIP_COND'],
                 lung_tr = feature['LUNG_TR'],
                 geo = feature['GEO'],
-                sursa_coord = feature['SURSA_COOR'],
+                sursa_coord = feature['SURSA_COORD'],
                 data_coord = feature['DATA_COORD'],
-                unit_log_int = feature['UNIT_LOG_I'],
+                unit_log_int = feature['UNIT_LOG_INT'],
                 s_unit_log = feature['S_UNIT_LOG'],
                 post_luc = feature['POST_LUC'],
                 obs = feature['OBS']
@@ -156,9 +162,10 @@ class IgeaTronsonParser:
         workbook = load_workbook(excel_file)
         sheet = workbook["TRONSON_JT"]
         
-        start_row = 2
-        existing_headers = {sheet.cell(row=1, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1)}
-        
+        start_row = sheet.max_row + 1
+        header_row = sheet.max_row - 1
+        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}    
+            
         for row_idx, row_data in enumerate(data, start=start_row):
                 for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                     if header.strip(" ") in existing_headers:
