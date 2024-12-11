@@ -181,10 +181,8 @@ class IgeaFiridaParser:
         return self.firide
     
     def write_to_excel_sheet(self, excel_file, split=False, done_split=False):
-        QgsMessageLog.logMessage("~~~* Starting to write firide to Excel *~~~", "FirideAssistant", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
-        QgsMessageLog.logMessage(f"Headers determined: {headers}", "FirideAssistant", level=Qgis.Info)
 
         # Collect data rows
         for firida in self.firide:
@@ -199,14 +197,12 @@ class IgeaFiridaParser:
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
-        QgsMessageLog.logMessage(f"Collected data rows: {len(data)} rows", "FirideAssistant", level=Qgis.Info)
 
         df = pd.DataFrame(data, columns=headers)
 
         # Open Excel file
         try:
             workbook = load_workbook(excel_file)
-            QgsMessageLog.logMessage(f"Opened workbook: {excel_file}", "FirideAssistant", level=Qgis.Info)
         except Exception as e:
             QgsMessageLog.logMessage(f"Error opening workbook: {e}", "FirideAssistant", level=Qgis.Critical)
             return
@@ -215,31 +211,25 @@ class IgeaFiridaParser:
             df_retea = df[df['Rolul firidei'].str.contains('retea', na=False)]
             df_bransament = df[df['Rolul firidei'].str.contains('bransament', na=False)]
             sheets = {'FIRIDA RETEA': df_retea, 'FIRIDA BRANSAMENT': df_bransament}
-            QgsMessageLog.logMessage("Splitting data into 'FIRIDA RETEA' and 'FIRIDA BRANSAMENT' sheets", "FirideAssistant", level=Qgis.Info)
         else:
             sheets = {'FIRIDA': df}
-            QgsMessageLog.logMessage("Using single sheet 'FIRIDA'", "FirideAssistant", level=Qgis.Info)
 
         for sheet_name, df_sheet in sheets.items():
             if sheet_name in workbook.sheetnames:
                 sheet = workbook[sheet_name]
-                QgsMessageLog.logMessage(f"Using existing sheet: {sheet_name}", "FirideAssistant", level=Qgis.Info)
             else:
                 sheet = workbook.create_sheet(sheet_name)
-                QgsMessageLog.logMessage(f"Created new sheet: {sheet_name}", "FirideAssistant", level=Qgis.Info)
 
             # Determine header and start rows
             start_row = sheet.max_row + 1
             header_row = sheet.max_row - 1
             existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
-            QgsMessageLog.logMessage(f"Existing headers in sheet '{sheet_name}': {existing_headers} - START ROW IS {start_row}, HEADER_ROW IS {header_row}", "FirideAssistant", level=Qgis.Info)
 
             # Ensure headers exist
             for idx, header in enumerate(headers, start=1):
                 if header not in existing_headers:
                     sheet.cell(row=header_row, column=idx, value=header)
                     existing_headers[header] = idx
-                    QgsMessageLog.logMessage(f"HEADER {header} NOT FOUND AT INDEX {idx}", "FirideAssistant", level=Qgis.Info)
 
             # Write data rows
             for row_idx, row_data in enumerate(df_sheet.itertuples(index=False, name=None), start=start_row):
@@ -261,10 +251,8 @@ class IgeaFiridaParser:
 
         try:
             workbook.save(excel_file)
-            QgsMessageLog.logMessage(f"Workbook saved successfully to {excel_file}", "FirideAssistant", level=Qgis.Info)
         except Exception as e:
             QgsMessageLog.logMessage(f"Error saving workbook: {e}", "FirideAssistant", level=Qgis.Critical)
 
         if not done_split:
-            QgsMessageLog.logMessage("Splitting sheets - Calling function recursively", "FirideAssistant", level=Qgis.Info)
             self.write_to_excel_sheet(excel_file, split=True, done_split=True)

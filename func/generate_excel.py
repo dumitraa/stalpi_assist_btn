@@ -116,4 +116,4 @@ class GenerateExcelDialog(QDialog):
             except Exception as e:
                 return
         else:
-            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Warning)

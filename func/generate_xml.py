@@ -124,14 +124,10 @@ class GenerateXMLWorker(QThread):
                     xml_template_path = self.plugin_path(f"templates/{safe_layer_name}.xml")
                     xml_path = os.path.join(self.base_dir, f"{safe_layer_name}.xml")
                     
-                    # QgsMessageLog.logMessage(f"Processing layer '{layer_name} - {safe_layer_name}'.", "StalpiAssist", level=Qgis.Info)
-
                     # Use XML template if available
                     if os.path.exists(xml_template_path):
-                        # QgsMessageLog.logMessage(f"Found template for '{layer_name} - {safe_layer_name} with path {xml_template_path}'. Populating XML.", level=Qgis.Info)
                         self.populate_xml_template(xml_template_path, xml_path, parser)
                     else:
-                        # QgsMessageLog.logMessage(f"No template found for '{layer_name} - {safe_layer_name} with path {xml_template_path}'. Exporting default XML.", level=Qgis.Warning)
                         self.export_to_default_xml(xml_path, parser, safe_layer_name)
                     
                     progress += 1
@@ -185,7 +181,6 @@ class GenerateXMLWorker(QThread):
             with open(xml_output_path, "w", encoding="utf-8") as f:
                 f.write(reparsed.toprettyxml(indent="  "))
 
-            QgsMessageLog.logMessage(f"Populated XML template for '{parser.get_name()}' and saved to {xml_output_path}.", level=Qgis.Info)
         except Exception as e:
             QgsMessageLog.logMessage(f"Error populating XML template for parser '{parser.get_name()}': {str(e)}", level=Qgis.Critical)
 
@@ -216,7 +211,6 @@ class GenerateXMLWorker(QThread):
             with open(xml_output_path, "w", encoding="utf-8") as f:
                 f.write(reparsed.toprettyxml(indent="  "))
 
-            QgsMessageLog.logMessage(f"Exported default XML for '{parser.get_name()}' to {xml_output_path}.", level=Qgis.Info)
         except Exception as e:
             QgsMessageLog.logMessage(f"Error exporting default XML for parser '{parser.get_name()}': {str(e)}", level=Qgis.Critical)
             
@@ -225,28 +219,24 @@ class GenerateXMLWorker(QThread):
         
         if not self.processor:
             try:
-                QgsMessageLog.logMessage("No processor found. Creating new processor.", "StalpiAssist", level=Qgis.Info)
                 self.processor = SHPProcessor(self.layers)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error creating processor: {str(e)}", "StalpiAssist", level=Qgis.Critical)
                 return
         
         try:
-            QgsMessageLog.logMessage("Getting current layers.", "StalpiAssist", level=Qgis.Info)
             current_layers = self.helper.get_layers()
         except Exception as e:
             QgsMessageLog.logMessage(f"Error getting current layers: {str(e)}", "StalpiAssist", level=Qgis.Critical)
             return
         
         if current_layers != old_layers:
-            QgsMessageLog.logMessage("Layers have changed. Creating new processor.", "StalpiAssist", level=Qgis.Info)
             self.processor = None
             
             try:
-                QgsMessageLog.logMessage("Creating new processor.", "StalpiAssist", level=Qgis.Info)
                 self.processor = SHPProcessor(current_layers)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error creating new processor: {str(e)}", "StalpiAssist", level=Qgis.Critical)
                 return
         else:
-            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Warning)

@@ -133,14 +133,11 @@ class IgeaBransamentParser:
         return self.bransamente
 
     def write_to_excel_sheet(self, excel_file):
-        QgsMessageLog.logMessage("Starting to write data to Excel sheet - BRANSAMENT", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
-        QgsMessageLog.logMessage(f"Headers determined: {headers}", "StalpiAssist", level=Qgis.Info)
         
         for bransament in self.bransamente:
             row = []
-            QgsMessageLog.logMessage(f"Processing bransament: {bransament}", "StalpiAssist", level=Qgis.Info)
             for header in headers:
                 mapping = self.mapping[header]
                 if not mapping:
@@ -168,7 +165,6 @@ class IgeaBransamentParser:
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip(" ") in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
-                    QgsMessageLog.logMessage(f"Writing value '{cell_value}' at row {row_idx}, column {existing_headers[header]}", "StalpiAssist", level=Qgis.Info)
         
         thin_border = Border(left=Side(style='thin'), 
                             right=Side(style='thin'), 

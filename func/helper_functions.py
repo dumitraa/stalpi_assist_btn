@@ -77,21 +77,17 @@ class HelperBase:
         '''
         Get layers by name from the QGIS project and add them to self.layers
         '''
-        QgsMessageLog.logMessage("Retrieving layers from the QGIS project...", "StalpiAssist", level=Qgis.Info)
         layers = {}
         layer_names = ['STALP_JT', 'TRONSON_JT', 'BRANS_FIRI_GRPM_JT', 'FB pe C LES', 'FIRIDA_RETEA_JT', 'GRID_GEIOD', 'PTCZ_PTAB', 'TRONSON_XML_', 'TRONSON_ARANJARE', 'poze', 'FIRIDA_XML_', 'BRANSAMENT_XML_', 'GRUP_MASURA_XML_', 'STALP_XML_', 'DESCHIDERI_XML_', 'TRONSON_predare_xml', 'LINIE_MACHETA', 'STALPI_MACHETA', 'TRONSON_MACHETA', 'FIRIDA MACHETA', 'GRUP MASURA MACHETA', 'DESCHIDERI MACHETA', 'BRANSAMENTE MACHETA', 'LINIE_JT']
         
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()
-        QgsMessageLog.logMessage(f"----------- QGIS LAYERS: {qgis_layers}", "StalpiAssist", level=Qgis.Info)
 
         # Iterate through the actual layer objects
         for layer_name in layer_names:
             layer = next((l for l in qgis_layers if l.name() == layer_name), None)
             layers[layer_name] = layer  # Add the layer if found, else None
-            # QgsMessageLog.logMessage(f"Layer found: key: {layer_name}, value: {layer}", "StalpiAssist", level=Qgis.Info)
 
-        # QgsMessageLog.logMessage(f"Layers found with IDs: {layers}", "StalpiAssist", level=Qgis.Info)
         return layers
 
 
@@ -110,7 +106,6 @@ class HelperBase:
             
             # Add the layer to the project with the proper name
             QgsProject.instance().addMapLayer(merged_layer)
-            # QgsMessageLog.logMessage(f"Layer added to project with name '{layer_name}': {layer_path}", "StalpiAssist", level=Qgis.Info)
             
         except Exception as e:
             QgsMessageLog.logMessage(f"Error adding layer to project: {e}", "StalpiAssist", level=Qgis.Critical)
@@ -187,12 +182,9 @@ class SHPProcessor:
         """
         Load the SHP layers, parse them, and store the parsers in a list.
         :return: None
-        """
-        QgsMessageLog.logMessage("Starting to load layers.", "StalpiAssist", level=Qgis.Info)
-        
+        """        
         for layer_name, layer in self.layers.items():
             try:
-                # QgsMessageLog.logMessage(f"Processing layer: {layer_name}", "StalpiAssist", level=Qgis.Info)
                 parser = None  # Initialize parser
                 
                 match layer_name.lower():
@@ -211,20 +203,11 @@ class SHPProcessor:
                     case "tronson_predare_xml":
                         parser = IgeaTronsonParser(layer)
                     case _:
-                        # QgsMessageLog.logMessage(
-                        #     f"Unknown layer type: {layer_name}. Skipping this layer.", 
-                        #     "StalpiAssist", 
-                        #     level=Qgis.Warning
-                        # )
+                        QgsMessageLog.logMessage(f"Unknown layer type: {layer_name}. Skipping this layer.", "StalpiAssist", level=Qgis.Warning)
                         continue
                 
                 if parser is None:
                     raise ValueError(f"No parser found for layer: {layer_name}")
-                
-                QgsMessageLog.logMessage(
-                    "StalpiAssist", 
-                    level=Qgis.Info
-                )
                 
                 # Debugging: Ensure the layer data is loaded before parsing
                 if not layer.isValid():
@@ -234,25 +217,12 @@ class SHPProcessor:
                 self.parsers.append(parser)  # Add the parser to the list
             
             except ValueError as ve:
-                QgsMessageLog.logMessage(
-                    f"ValueError processing layer '{layer_name}': {str(ve)}", 
-                    "StalpiAssist", 
-                    level=Qgis.Warning
-                )
+                QgsMessageLog.logMessage(f"ValueError processing layer '{layer_name}': {str(ve)}", "StalpiAssist", level=Qgis.Warning)
             except AttributeError as ae:
-                QgsMessageLog.logMessage(
-                    f"AttributeError processing layer '{layer_name}': {str(ae)}", 
-                    "StalpiAssist", 
-                    level=Qgis.Warning
-                )
+                QgsMessageLog.logMessage(f"AttributeError processing layer '{layer_name}': {str(ae)}", "StalpiAssist", level=Qgis.Warning)
             except Exception as e:
-                QgsMessageLog.logMessage(
-                    f"Error processing layer '{layer_name}': {str(e)}", 
-                    "StalpiAssist", 
-                    level=Qgis.Critical
-                )
+                QgsMessageLog.logMessage(f"Error processing layer '{layer_name}': {str(e)}", "StalpiAssist", level=Qgis.Critical)
         
-        QgsMessageLog.logMessage("Finished loading layers.", "StalpiAssist", level=Qgis.Info)
         
         
 

@@ -246,7 +246,6 @@ class StalpiAssist:
         base_dir = QFileDialog.getExistingDirectory(None, "Select Base Directory", "")
         if base_dir:
             self.base_dir = base_dir  # Set the base directory here directly
-            QgsMessageLog.logMessage(f"Base directory set to: {self.base_dir}", "StalpiAssist", level=Qgis.Info)
             # Update the icon for Fisier Destinatie to complete.png
             self.fisier_destinatie_action.setIcon(QIcon(str(self.plugin_path('icons/complete.png'))))
             # Enable all other actions
@@ -342,5 +341,5 @@ class StalpiAssist:
             except Exception as e:
                 return
         else:
-            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Warning)
 
