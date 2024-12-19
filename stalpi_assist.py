@@ -28,6 +28,11 @@ from qgis.PyQt.QtGui import QIcon # type: ignore
 from qgis.PyQt.QtWidgets import QAction # type: ignore
 from qgis.core import QgsMessageLog, QgsProcessingFeedback, QgsProcessingContext, Qgis, QgsProject # type: ignore
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
+import processing # type: ignore
+from qgis.core import register_function # type: ignore
+from qgis.core import QgsGeometry, QgsWkbTypes # type: ignore
+
+
 
 import os
 import os.path
@@ -35,11 +40,6 @@ import os.path
 from .resources import *
 
 from .func.helper_functions import HelperBase, SHPProcessor
-from .func.models.tronson_jt import TronsonJTModel
-from .func.models.bransament import BransamentModel
-from .func.models.stalp import StalpJTModel
-from .func.models.deschideri import DeschideriJTModel
-from .func.models.tronson_aranjat import TronsonAranjatModel
 
 from .func.generate_xml import GenerateXMLDialog
 from .func.generate_excel import GenerateExcelDialog
@@ -61,6 +61,7 @@ class StalpiAssist:
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         self.helper = HelperBase()
+        # self.register_functions()
         self.processor = None
         # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
@@ -240,6 +241,41 @@ class StalpiAssist:
             self.toolbar.removeAction(action)
         del self.toolbar
         
+    def register_functions(self):
+        QgsMessageLog.logMessage("Registering custom expression functions", "StalpiAssist", level=Qgis.Info)
+
+        def round_wkt_coordinates(values, feature=None, parent=None, context=None):
+            def format_point(point):
+                return f"{round(point.x(), 4):.4f} {round(point.y(), 4):.4f}"
+
+            geometry = values[0]  # Get the geometry from the input
+            if isinstance(geometry, QgsGeometry):
+                if geometry.isMultipart():
+                    if geometry.type() == QgsWkbTypes.LineGeometry:
+                        parts = [
+                            "(" + ", ".join(format_point(point) for point in line) + ")"
+                            for line in geometry.asMultiPolyline()
+                        ]
+                        wkt = f"MULTILINESTRING ({', '.join(parts)})"
+                    else:
+                        wkt = geometry.asWkt()  # For other geometry types
+                else:
+                    if geometry.type() == QgsWkbTypes.LineGeometry:
+                        points = ", ".join(format_point(point) for point in geometry.asPolyline())
+                        wkt = f"LINESTRING ({points})"
+                    else:
+                        wkt = geometry.asWkt()  # For other geometry types
+                return wkt
+            return None  # Return None if input is invalid
+
+        register_function(
+            round_wkt_coordinates,
+            group="Custom",
+            usesgeometry=True,
+            params_as_list=True,
+            helpText="Rounds WKT geometry coordinates to a given precision."
+        )
+        
     
     def set_base_dir(self):
         """Set base directory and update icons."""
@@ -258,18 +294,16 @@ class StalpiAssist:
         
     def run_tronson_model(self):
         """Run Tronson model."""
-        algorithm = TronsonJTModel()
         params = {
             "linie_jt_introduse": "LINIE_JT",
             "stalpi_desenati": "STALP_JT",
             "tronson_desenat": "TRONSON_JT",
             "TRONSON_XML_": os.path.join(self.base_dir, f"TRONSON_XML_.shp")
         }
-        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, "TRONSON_XML_")
+        processing.run("project:001 TRONSON_JT", params)
         
         
     def run_brans_model(self):
-        algorithm = BransamentModel()
         params = {
             "brans_firi_desenate": "BRANS_FIRI_GRPM_JT",
             "fb_pe_c_les": "FB pe C LES",
@@ -278,37 +312,34 @@ class StalpiAssist:
             "GRUP_MASURA_XML_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
             "FIRIDA_XML_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
         }   
-        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["BRANSAMENT_XML_", "FIRIDA_XML_", "GRUP_MASURA_XML_"])
+        processing.run("project:002 BRANS_FIRI_GR", params)
         
         
     def run_stalp_model(self):
-        algorithm = StalpJTModel()
         params = {
             "poze_geotag": "poze",
             "stalp_in_lucru": "STALP_JT",
             "STALP_XML_": os.path.join(self.base_dir, f"STALP_XML_.shp")
         }
-        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, "STALP_XML_") 
+        processing.run("project:003 STALP JT generare", params)
     
     
     def run_deschideri_model(self):
-        algorithm = DeschideriJTModel()
         params = {
             'stalpi_desenati': 'STALP_JT',
             'tronson_jt': 'TRONSON_XML_',
             'DESCHIDERI_XML_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
             'SCR_DWG': os.path.join(self.base_dir, f"SCR_DWG.shp"),
         }
-        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["DESCHIDERI_XML_", "SCR_DWG"])
+        processing.run("project:004 DESCHIDERI JT", params)
         
         
     def run_tronsoane_duble_model(self):
-        algorithm = TronsonAranjatModel()
         params = {
             'tronson_aranjat': 'TRONSON_ARANJAT',
             'TRONSON_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
         }
-        self.helper.run_algorithm(algorithm, params, self.context, self.feedback, ["TRONSON_predare_xml"])
+        processing.run("project:003 TRONSOANE DUBLE ACTUALIZARE", params)
 
     def generate_xml(self):
         self.process_layers(self.layers)

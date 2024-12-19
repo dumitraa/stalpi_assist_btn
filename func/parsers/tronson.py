@@ -1,7 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
-from qgis.core import QgsMessageLog, Qgis
+from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class TronsonJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, nr_crt_loc, 
@@ -42,6 +42,10 @@ class IgeaTronsonParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.tronsoane: List[TronsonJT] = []
+        # self.helper = HelperBase()
+        # self.layers = self.helper.get_layers()
+        # self.processor = SHPProcessor(self.layers)
+        # self.linii = self.processor.map_linie_denum()
         
         self.mapping = {
             "Nr. crt": "nr_crt",
@@ -50,11 +54,11 @@ class IgeaTronsonParser:
             "Descrierea BDI": ("TR ", "denum"),
             "Proprietar": "prop",
             "ID_Locatia": "id_loc",
-            "Locatia": "",                                  # Din csv tronson_JOASA_TENSIUNE - <ID_LOC> TO DESCRIEREA BDI
+            "Locatia": "",
             "Nr.crt_Inceput de tronson": "nr_crt_inc_tr",
-            "Inceput de tronson": "",                       # to determine
+            "Inceput de tronson": lambda tronson: tronson.denum.split('-')[0].strip() if tronson.denum else "",
             "Nr.crt_Final de tronson": "nr_crt_fin_tr",
-            "Final de tronson": "",                         # to determine
+            "Final de tronson": lambda tronson: tronson.denum.split('-')[1].strip() if tronson.denum else "",
             "Tipul tronsonului": "tip_tr",
             "Tip conductor": "tip_cond",
             "Lungimea tronsonului (km)": "lung_tr",
@@ -67,32 +71,7 @@ class IgeaTronsonParser:
             "Observatii": "obs"
         }
         
-        self.qgis_mapping = {
-            "CLASS_ID": "CLASS_ID",
-            "ID_BDI": "ID_BDI",
-            "NR_CRT": "NR_CRT",
-            "DENUM": "DENUM",
-            "PROP": "PROP",
-            "CLASS_ID_LOC": "CLASS_ID_LOC",
-            "ID_LOC": "ID_LOC",
-            "NR_CRT_LOC": "NR_CRT_LOC",
-            "CLASS_ID_LOC": "CLASS_ID_INC_TR",
-            "ID_INC_TR": "ID_INC_TR",
-            "NR_CRT_INC_TR": "NR_CRT_INC_TR",
-            "CLASS_ID_FIN_TR": "CLASS_ID_FIN_TR",
-            "ID_FIN_TR": "ID_FIN_TR",
-            "NR_CRT_FIN_TR": "NR_CRT_FIN_TR",
-            "TIP_TR": "TIP_TR",
-            "TIP_COND": "TIP_COND",
-            "LUNG_TR": "LUNG_TR",
-            "GEO": "GEO",
-            "SURSA_COORD": "SURSA_COORD",
-            "DATA_COORD": "DATA_COORD",
-            "UNIT_LOG_INT": "UNIT_LOG_INT",
-            "S_UNIT_LOG": "S_UNIT_LOG",
-            "POST_LUC": "POST_LUC",
-            "OBS": "OBS"
-        }
+        # self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "PROP", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_INC_TR", "ID_INC_TR", "NR_CRT_INC_TR", "CLASS_ID_FIN_TR", "ID_FIN_TR", "NR_CRT_FIN_TR", "TIP_TR", "TIP_COND", "LUNG_TR", "GEO", "SURSA_COORD", "DATA_COORD", "UNIT_LOG_INT", "S_UNIT_LOG", "POST_LUC", "OBS"]
         
 
     def parse(self):
@@ -103,33 +82,35 @@ class IgeaTronsonParser:
             QgsMessageLog.logMessage(f"Error: {e}", "StalpiAssist", level=Qgis.Critical)
             return
 
-        for feature in self.vector_layer.getFeatures():
+        features = list(self.vector_layer.getFeatures())
+        for feature in features:
+            attributes = {key: feature[key] for key in feature.fields().names()}
             tronson_data = TronsonJT(
                 id = feature.id(),
-                class_id = feature['CLASS_ID'],
-                id_bdi = feature['ID_BDI'],
-                nr_crt = feature['NR_CRT'],
-                denum = feature['DENUM'],
-                prop = feature['PROP'],
-                class_id_loc = feature['CLASS_ID_LOC'],
-                id_loc = feature['ID_LOC'],
-                nr_crt_loc = feature['NR_CRT_LOC'],
-                class_id_inc_tr = feature['CLASS_ID_LOC'],
-                id_inc_tr = feature['ID_INC_TR'],
-                nr_crt_inc_tr = feature['NR_CRT_INC_TR'],
-                class_id_fin_tr = feature['CLASS_ID_FIN_TR'],
-                id_fin_tr = feature['ID_FIN_TR'],
-                nr_crt_fin_tr = feature['NR_CRT_FIN_TR'],
-                tip_tr = feature['TIP_TR'],
-                tip_cond = feature['TIP_COND'],
-                lung_tr = feature['LUNG_TR'],
-                geo = feature['GEO'],
-                sursa_coord = feature['SURSA_COORD'],
-                data_coord = feature['DATA_COORD'],
-                unit_log_int = feature['UNIT_LOG_INT'],
-                s_unit_log = feature['S_UNIT_LOG'],
-                post_luc = feature['POST_LUC'],
-                obs = feature['OBS']
+                class_id = attributes.get('CLASS_ID'),
+                id_bdi = attributes.get('ID_BDI'),
+                nr_crt = attributes.get('NR_CRT'),
+                denum = attributes.get('DENUM'),
+                prop = attributes.get('PROP'),
+                class_id_loc = attributes.get('CLASS_ID_LOC'),
+                id_loc = attributes.get('ID_LOC'),
+                nr_crt_loc = attributes.get('NR_CRT_LOC'),
+                class_id_inc_tr = attributes.get('CLASS_ID_INC_TR'),
+                id_inc_tr = attributes.get('ID_INC_TR'),
+                nr_crt_inc_tr = attributes.get('NR_CRT_INC_TR'),
+                class_id_fin_tr = attributes.get('CLASS_ID_FIN_TR'),
+                id_fin_tr = attributes.get('ID_FIN_TR'),
+                nr_crt_fin_tr = attributes.get('NR_CRT_FIN_TR'),
+                tip_tr = attributes.get('TIP_TR'),
+                tip_cond = attributes.get('TIP_COND'),
+                lung_tr = attributes.get('LUNG_TR'),
+                geo = attributes.get('GEO'),
+                sursa_coord = attributes.get('SURSA_COORD'),
+                data_coord = attributes.get('DATA_COORD'),
+                unit_log_int = attributes.get('UNIT_LOG_INT'),
+                s_unit_log = attributes.get('S_UNIT_LOG'),
+                post_luc = attributes.get('POST_LUC'),
+                obs = attributes.get('OBS')
             )
             self.tronsoane.append(tronson_data)
             
@@ -139,22 +120,30 @@ class IgeaTronsonParser:
     def get_data(self):
         return self.tronsoane
     
+
+    def resolve_mapping(self, parser, mapping):
+        if isinstance(mapping, tuple):
+            parts = [
+                getattr(parser, element, "").strip() if hasattr(parser, element) else str(element).strip()
+                for element in mapping
+            ]
+            return " ".join(filter(None, parts)).strip()
+        elif callable(mapping):
+            # If mapping is a function, execute it
+            return mapping(parser)
+        return getattr(parser, mapping, "") if mapping else ""
+
     def write_to_excel_sheet(self, excel_file):
-        print("~~~* Writing tronsoane to excel *~~~")
+        QgsMessageLog.logMessage(f"Writing tronson to {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
         for tronson in self.tronsoane:
             row = []
             for header in headers:
-                mapping = self.mapping[header]
-                if not mapping:
-                    value = ""
-                elif isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(tronson, attr, '')}"
-                else:
-                    value = getattr(tronson, mapping, "")
+                mapping = self.mapping.get(header)
+                value = self.resolve_mapping(tronson, mapping)
+                # Replace None or invalid values with an empty string
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
@@ -164,12 +153,12 @@ class IgeaTronsonParser:
         
         start_row = sheet.max_row + 1
         header_row = sheet.max_row - 1
-        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}    
+        existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
             
         for row_idx, row_data in enumerate(data, start=start_row):
-                for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                    if header.strip(" ") in existing_headers:
-                        sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
+            for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
+                if header.strip(" ") in existing_headers:
+                    sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
                         
         thin_border = Border(left=Side(style='thin'), 
                             right=Side(style='thin'), 

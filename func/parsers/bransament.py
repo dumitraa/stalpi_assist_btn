@@ -3,13 +3,13 @@ from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
 from qgis.core import QgsMessageLog, Qgis # type: ignore
 
+# from ..helper_functions import HelperBase, SHPProcessor
 
 class BransamentJT():
-    def __init__(self, id, class_id, id_bdi, nr_crt, denum, class_id_loc, id_loc, nr_crt_loc, 
+    def __init__(self, id, id_bdi, nr_crt, denum, class_id_loc, id_loc, nr_crt_loc, 
                  class_id_plc_br, id_plc_br, nr_crt_plc_br, tip_br, tip_cond, lung, jud, 
                  prim, loc, tip_str, street, nr_imob, geo, sursa_coord, data_coord, obs):
         self.id = id
-        self.class_id = class_id
         self.id_bdi = id_bdi
         self.nr_crt = nr_crt
         self.denum = denum
@@ -41,17 +41,21 @@ class IgeaBransamentParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.bransamente: List[BransamentJT] = []
+        # self.helper = HelperBase()
+        # self.layers = self.helper.get_layers()
+        # self.processor = SHPProcessor(self.layers)
+        # self.linii = self.processor.map_linie_denum()
         
         self.mapping = {
             "Nr. Crt": "nr_crt",
             "Denumire": "denum",
             "Descrierea BDI": ("BR ", "denum"),
             "ID_Locatia": "id_loc",
-            "Locatia": "",                                          # to determine
+            "Locatia": "",
             "ID_PAPT/Nr. Crt_Plecare bransament": "nr_crt_plc_br",
             "Plecare bransament": "",                               # to determine
             "Tip bransament": "tip_br",
-            "Tipul dispunerii": "",                                 # to determine, "LES"?
+            "Tipul dispunerii": lambda bransament: "LES" if "XABY" in bransament.tip_cond or "ACYABY" in bransament.tip_cond else "LEA",
             "Tip conductor": "tip_cond",
             "Lungime (m)": "lung",
             "Judet": "jud",
@@ -66,50 +70,27 @@ class IgeaBransamentParser:
             "Observatii": "obs",
         }
         
-        self.qgis_mapping = {
-            "CLASS_ID": "CLASS_ID",
-            "ID_BDI": "ID_BDI",
-            "NR_CRT": "NR_CRT",
-            "DENUM": "DENUM",
-            "CLASS_ID_LOC": "CLASS_ID_LOC",
-            "ID_LOC": "ID_LOC",
-            "NR_CRT_LOC": "NR_CRT_LOC",
-            "CLASS_ID_P": "CLASS_ID_PLC_BR",
-            "ID_PLC_BR": "ID_PLC_BR",
-            "NR_CRT_PLC": "NR_CRT_PLC_BR",
-            "TIP_BR": "TIP_BR",
-            "TIP_COND": "TIP_COND",
-            "LUNG": "LUNG",
-            "JUD": "JUD",
-            "PRIM": "PRIM",
-            "LOC": "LOC",
-            "TIP_STR": "TIP_STR",
-            "STR": "STR",
-            "NR_IMOB": "NR_IMOB",
-            "GEO": "GEO",
-            "SURSA_COORD": "SURSA_COORD",
-            "DATA_COORD": "DATA_COORD",
-            "OBS": "OBS"
-        }
-            
+        # self.qgis_mapping = ["ID_BDI", "NR_CRT", "DENUM", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_PLC_BR", "ID_PLC_BR", "NR_CRT_PLC_BR", "TIP_BR", "TIP_COND", "LUNG", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "NR_IMOB", "GEO", "SURSA_COORD", "DATA_COORD", "OBS"]
+        
 
     def parse(self):
         if not self.vector_layer.isValid():
             raise ValueError("The provided layer is not valid.")
 
-        for feature in self.vector_layer.getFeatures():
+        features = list(self.vector_layer.getFeatures())
+        for feature in features:
+            attributes = {key: feature[key] for key in feature.fields().names()}
             bransament_data = BransamentJT(
                 id=feature.id(),
-                class_id=feature['CLASS_ID'],
                 id_bdi=feature['ID_BDI'],
                 nr_crt=feature['NR_CRT'],
                 denum=feature['DENUM'],
                 class_id_loc=feature['CLASS_ID_LOC'],
                 id_loc=feature['ID_LOC'],
                 nr_crt_loc=feature['NR_CRT_LOC'],
-                class_id_plc_br=feature['CLASS_ID_P'],
+                class_id_plc_br=feature['CLASS_ID_PLC_BR'],
                 id_plc_br=feature['ID_PLC_BR'],
-                nr_crt_plc_br=feature['NR_CRT_PLC'],
+                nr_crt_plc_br=feature['NR_CRT_PLC_BR'],
                 tip_br=feature['TIP_BR'],
                 tip_cond=feature['TIP_COND'],
                 lung=feature['LUNG'],
@@ -124,6 +105,7 @@ class IgeaBransamentParser:
                 data_coord=feature['DATA_COORD'],
                 obs=feature['OBS']
             )
+
             self.bransamente.append(bransament_data)
             
     def get_name(self):
@@ -132,7 +114,21 @@ class IgeaBransamentParser:
     def get_data(self):
         return self.bransamente
 
+    def resolve_mapping(self, parser, mapping):
+        if isinstance(mapping, tuple):
+            parts = [
+                getattr(parser, element, "").strip() if hasattr(parser, element) else str(element).strip()
+                for element in mapping
+            ]
+            return " ".join(filter(None, parts)).strip()
+        elif callable(mapping):
+            # If mapping is a function, execute it
+            return mapping(parser)
+        return getattr(parser, mapping, "") if mapping else ""
+
+
     def write_to_excel_sheet(self, excel_file):
+        QgsMessageLog.logMessage(f"Writing bransamente to excel file: {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -140,13 +136,7 @@ class IgeaBransamentParser:
             row = []
             for header in headers:
                 mapping = self.mapping[header]
-                if not mapping:
-                    value = ""
-                elif isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(bransament, attr, '')}"
-                else:
-                    value = getattr(bransament, mapping, "")
+                value = self.resolve_mapping(bransament, mapping)
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)

@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
+from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class LinieJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, class_id_inst_sup, id_inst_sup, cod_ad_energ, niv_ten, tip_lin, an_pif_init, nr_iv):
@@ -31,64 +32,62 @@ class IgeaLinieParser:
         
         self.mapping = {
             "ID": "id_bdi",
-            "Denumire": "denum",
-            "Descrierea BDI": "",                       # to determine
-            "Proprietar": "prop",
-            "Locatia": "",                              # to determine
-            "Descrierea instalatiei superioare": "",    # to determine
+            "Denumire": "",
+            "Descrierea BDI": "denum",
+            "Proprietar": lambda linie: linie.prop if linie.prop not in [None, "NULL", "nan"] else "DEER",
+            "Locatia": "id_loc",
             "Nivel tensiune (kV)": "niv_ten",
             "Tipul liniei": "tip_lin",
         }
         
-        self.qgis_mapping = {
-            "CLASS_ID": "CLASS_ID",
-            "ID_BDI": "ID_BDI",
-            "NR_CRT": "NR_CRT",
-            "DENUM": "DENUM",
-            "PROP": "PROP",
-            "CLASS_ID_LOC": "CLASS_ID_LOC",
-            "ID_LOC": "ID_LOC",
-            "CLASS_ID_INST_SUP": "CLASS_ID_INST_SUP",
-            "ID_INST_SUP": "ID_INST_SUP",
-            "COD_AD_ENERG": "COD_AD_ENERG",
-            "NIV_TEN": "NIV_TEN",
-            "TIP_LIN": "TIP_LIN",
-            "AN_PIF_INIT": "AN_PIF_INIT",
-            "NR_IV": "NR_IV",
-        }
-            
-            
+        # self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "PROP", "CLASS_ID_LOC", "ID_LOC", "CLASS_ID_INST_SUP", "ID_INST_SUP", "COD_AD_ENERG", "NIV_TEN", "TIP_LIN", "AN_PIF_INIT", "NR_IV"]
+
     def parse(self):
         if not self.vector_layer.isValid():
             raise ValueError("The provided layer is not valid.")
 
-        for feature in self.vector_layer.getFeatures():
+        features = list(self.vector_layer.getFeatures())
+        for feature in features:
+            attributes = {key: feature[key] for key in feature.fields().names()}
             linie_data = LinieJT(
                 id=feature.id(),
-                class_id=feature["CLASS_ID"],
-                id_bdi=feature["ID_BDI"],
-                nr_crt=feature["NR_CRT"],
-                denum=feature["DENUM"],
-                prop=feature["PROP"],
-                class_id_loc=feature["CLASS_ID_LOC"],
-                id_loc=feature["ID_LOC"],
-                class_id_inst_sup=feature["CLASS_ID_INST_SUP"],
-                id_inst_sup=feature["ID_INST_SUP"],
-                cod_ad_energ=feature["COD_AD_ENERG"],
-                niv_ten=feature["NIV_TEN"],
-                tip_lin=feature["TIP_LIN"],
-                an_pif_init=feature["AN_PIF_INIT"],
-                nr_iv=feature["NR_IV"]
+                class_id=attributes.get("CLASS_ID"),
+                id_bdi=attributes.get("ID_BDI"),
+                nr_crt=attributes.get("NR_CRT"),
+                denum=attributes.get("DENUM"),
+                prop=attributes.get("PROP"),
+                class_id_loc=attributes.get("CLASS_ID_LOC"),
+                id_loc=attributes.get("ID_LOC"),
+                class_id_inst_sup=attributes.get("CLASS_ID_INST_SUP"),
+                id_inst_sup=attributes.get("ID_INST_SUP"),
+                cod_ad_energ=attributes.get("COD_AD_ENERG"),
+                niv_ten=attributes.get("NIV_TEN"),
+                tip_lin=attributes.get("TIP_LIN"),
+                an_pif_init=attributes.get("AN_PIF_INIT"),
+                nr_iv=attributes.get("NR_IV")
             )
             self.linii.append(linie_data)
+                    
+    def get_name(self):
+        return "LINIE_JT"
             
     def get_data(self):
         return self.linii
-    
-    def get_name(self):
-        return "LINIE_JT"
-    
+
+    def resolve_mapping(self, parser, mapping):
+        if isinstance(mapping, tuple):
+            parts = [
+                getattr(parser, element, "").strip() if hasattr(parser, element) else str(element).strip()
+                for element in mapping
+            ]
+            return " ".join(filter(None, parts)).strip()
+        elif callable(mapping):
+            # If mapping is a function, execute it
+            return mapping(parser)
+        return getattr(parser, mapping, "") if mapping else ""
+
     def write_to_excel_sheet(self, excel_file):
+        QgsMessageLog.logMessage(f"Writing linie to {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -97,14 +96,7 @@ class IgeaLinieParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                if not mapping:
-                    value = ""
-                elif isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(linie, attr, '')}"
-                else:
-                    value = getattr(linie, mapping, "")
-                # Replace None with an empty string
+                value = self.resolve_mapping(linie, mapping)
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
@@ -137,4 +129,3 @@ class IgeaLinieParser:
                     cell.border = thin_border
         
         workbook.save(excel_file)
-

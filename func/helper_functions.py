@@ -4,14 +4,6 @@ from xml.dom import minidom
 import xlsxwriter
 from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis # type: ignore
 
-from .parsers.firida import IgeaFiridaParser
-from .parsers.bransament import IgeaBransamentParser
-from .parsers.linie import IgeaLinieParser
-from .parsers.tronson import IgeaTronsonParser
-from .parsers.deschidere import IgeaDeschidereParser
-from .parsers.stalp import IgeaStalpParser
-from .parsers.grup_masura import IgeaGrupMasuraParser
-
 
 class HelperBase:
     def __init__(self):
@@ -111,35 +103,24 @@ class HelperBase:
             QgsMessageLog.logMessage(f"Error adding layer to project: {e}", "StalpiAssist", level=Qgis.Critical)
             
             
-    def run_algorithm(self, algorithm, params, context, feedback, outputs):
+    def run_algorithm(self, algorithm, params, context, feedback, output_key):
         try:
+            # Step 1: Run the algorithm
             results = algorithm.processAlgorithm(params, context, feedback)
             
-            # Check if `outputs` is a list and validate all items
-            if isinstance(outputs, list):
-                found_all = True
-                found_any = False
-                
-                for output in outputs:
-                    if output in results and results[output]:
-                        found_any = True
-                    else:
-                        found_all = False
-                
-                if found_all:
-                    return True  # All outputs found and valid
-                elif found_any:
-                    return None  # Some outputs found but not all
-                else:
-                    return False  # No outputs found
-            else:
-                # Single output validation
-                if outputs in results and results[outputs]:
-                    return True
+            # Step 2: Retrieve the desired output path(s)
+            output_path = results.get(output_key)
+            
+            if not output_path:
+                QgsMessageLog.logMessage(f"Output not found for key: {output_key}", "StalpiAssist", level=Qgis.Warning)
                 return False
+
+            # Step 3: Add the output layer to the project
+            self.add_layer_to_project(output_path)
+            return True
+
         except Exception as e:
-            # Log the error for debugging
-            print(f"Error running algorithm: {e}")
+            QgsMessageLog.logMessage(f"Error processing and adding output: {e}", "StalpiAssist", level=Qgis.Critical)
             return False
 
 # MARK: PARSERS
@@ -179,6 +160,14 @@ class SHPProcessor:
     
     
     def load_layers(self):
+        from .parsers.firida import IgeaFiridaParser
+        from .parsers.bransament import IgeaBransamentParser
+        from .parsers.linie import IgeaLinieParser
+        from .parsers.tronson import IgeaTronsonParser
+        from .parsers.deschidere import IgeaDeschidereParser
+        from .parsers.stalp import IgeaStalpParser
+        from .parsers.grup_masura import IgeaGrupMasuraParser
+        
         """
         Load the SHP layers, parse them, and store the parsers in a list.
         :return: None
@@ -222,6 +211,21 @@ class SHPProcessor:
                 QgsMessageLog.logMessage(f"AttributeError processing layer '{layer_name}': {str(ae)}", "StalpiAssist", level=Qgis.Warning)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error processing layer '{layer_name}': {str(e)}", "StalpiAssist", level=Qgis.Critical)
+                
+    def map_linie_denum(self):
+        from .parsers.linie import IgeaLinieParser
+        
+        linie_denum = {}
+        
+        for layer_name, layer in self.layers.items():
+            if layer_name.lower() == "linie_jt":
+                parser = IgeaLinieParser(layer)
+                parser.parse()
+                
+                for linie in parser.linii:
+                    linie_denum[linie.id_bdi] = linie.denum
+                    
+        return linie_denum
         
         
         

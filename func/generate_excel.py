@@ -40,7 +40,13 @@ class GenerateExcelDialog(QDialog):
     def __exec__(self):
         try:
             # Process layers
-            self.process_layers()
+            try:
+                self.process_layers()
+                if self.processor is None:
+                    raise ValueError("No processor found.")
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error processing layers: {e}", "StalpiAssist", level=Qgis.Critical)
+                raise
 
             layer_names = ['LINIE_JT', 'STALP_XML_', 'BRANSAMENT_XML_', 
                         'GRUP_MASURA_XML_', 'FIRIDA_XML_', 'DESCHIDERI_XML_', 
@@ -58,7 +64,7 @@ class GenerateExcelDialog(QDialog):
                 raise FileNotFoundError(f"Template file not found at {template_file}")
 
             # Create a temporary copy of the template file
-            new_file_name = f"Anexa_{time.strftime('%Y%m%d_%H%M%S')}.xlsx"
+            new_file_name = f"ANEXA_4-6_machete_de_completat_JT.xlsx"
             new_file_path = os.path.join(self.base_dir, new_file_name)
             self.copy_file(template_file, new_file_path)
 
@@ -68,12 +74,16 @@ class GenerateExcelDialog(QDialog):
 
             # Process parsers and write to the Excel file
             for i, parser in enumerate(self.processor.parsers):
-                print(f"Processing {parser.get_name()}")
-                parser.write_to_excel_sheet(new_file_path)
+                QgsMessageLog.logMessage(f"Processing parser {parser.get_name()}", "StalpiAssist", level=Qgis.Info)
+                try:
+                    parser.write_to_excel_sheet(new_file_path)
+                except Exception as e:
+                    QgsMessageLog.logMessage(f"Error during processing: {e}", "StalpiAssist", level=Qgis.Critical)
+                    raise
                 self.progress_bar.setValue(i + 1)
             
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error during execution: {e}", "PluginName", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error during execution: {e}", "StalpiAssist", level=Qgis.Critical)
             raise
 
         # Notify the user when the process is complete
@@ -99,21 +109,26 @@ class GenerateExcelDialog(QDialog):
         
         if not self.processor:
             try:
+                QgsMessageLog.logMessage("Creating new processor...", "StalpiAssist", level=Qgis.Info)
                 self.processor = SHPProcessor(self.layers)
             except Exception as e:
+                QgsMessageLog.logMessage(f"Error creating processor: {e}", "StalpiAssist", level=Qgis.Critical)
                 return
         
         try:
             current_layers = self.helper.get_layers()
         except Exception as e:
+            QgsMessageLog.logMessage(f"Error getting layers: {e}", "StalpiAssist", level=Qgis.Critical)
             return
         
         if current_layers != old_layers:
             self.processor = None
             
             try:
+                QgsMessageLog.logMessage("Creating new processor...", "StalpiAssist", level=Qgis.Info)
                 self.processor = SHPProcessor(current_layers)
             except Exception as e:
+                QgsMessageLog.logMessage(f"Error creating processor: {e}", "StalpiAssist", level=Qgis.Critical)
                 return
         else:
             QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Warning)

@@ -4,6 +4,8 @@ from openpyxl.styles import Border, Side
 import pandas as pd
 from qgis.core import QgsMessageLog, Qgis # type: ignore
 
+# from ..helper_functions import HelperBase, SHPProcessor
+
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
                  class_id_inst_sup, id_inst_sup, nr_crt_inst_sup, jud, prim, loc, tip_str, 
@@ -55,15 +57,19 @@ class IgeaFiridaParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.firide: List[FiridaJT] = []
+        # self.helper = HelperBase()
+        # self.layers = self.helper.get_layers()
+        # self.processor = SHPProcessor(self.layers)
+        # self.linii = self.processor.map_linie_denum()
         
         self.mapping = {
             "Nr.crt": "nr_crt",
             "Identificator": "iden",
             "Descrierea BDI": ("FR ", "iden"),          # might not be correct
-            "ID_Locatia": "id_loc",
+            "ID_Locatia": "nr_crt_loc",
             "Locatia": "",                              # ?
             "ID_Descrierea instalatiei superioare": "id_inst_sup",
-            "Descrierea instalatiei superioare": "desc_inst_sup",
+            "Descrierea instalatiei superioare": "",
             "Judet": "jud",
             "Primarie": "prim",
             "Localitate": "loc",
@@ -91,86 +97,52 @@ class IgeaFiridaParser:
             "Data actualizarii coordonatelor": "data_coord"
         }
         
-        self.qgis_mapping = {
-            "CLASS_ID": "CLASS_ID",
-            "ID_BDI": "ID_BDI",
-            "NR_CRT": "NR_CRT",
-            "IDEN": "IDEN",
-            "CLASS_ID_LOC": "CLASS_ID_LOC",
-            "ID_LOC": "ID_LOC",
-            "NR_CRT_LOC": "NR_CRT_LOC",
-            "CLASS_ID_LOC": "CLASS_ID_INST_SUP",
-            "ID_INST_SUP": "ID_INST_SUP",
-            "NR CRT INS": "NR_CRT_INST_SUP",
-            "JUD": "JUD",
-            "PRIM": "PRIM",
-            "LOC": "LOC",
-            "TIP_STR": "TIP_STR",
-            "STR": "STR",
-            "NR": "NR",
-            "ETAJ": "ETAJ",
-            "ROL_FIRI": "ROL_FIRI",
-            "TIP_FIRI_RET": "TIP_FIRI_RET",
-            "TIP_FIRI_BR": "TIP_FIRI_BR",
-            "AMPL": "AMPL",
-            "MAT": "MAT",
-            "LIM_PROP": "LIM_PROP",
-            "DEF_FIRI": "DEF_FIRI",
-            "NR_CIR": "NR_CIR",
-            "AN_FUNC": "AN_FUNC",
-            "ALT": "ALT",
-            "GEO": "GEO",
-            "SURSA_COORD": "SURSA_COORD",
-            "DATA_COOR": "DATA_COORD",
-            "LONG": "LONG",
-            "LAT": "LAT",
-            "X_STEREO_70": "X_STEREO_70",
-            "Y_STEREO_70": "Y_STEREO_70",
-            "Z_STEREO_70": "Z_STEREO_70"
-        }
+        self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "IDEN", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_INST_SUP", "ID_INST_SUP", "NR_CRT_INST_SUP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "NR", "ETAJ", "ROL_FIRI", "TIP_FIRI_RET", "TIP_FIRI_BR", "AMPL", "MAT", "LIM_PROP", "DEF_FIRI", "NR_CIR", "AN_FUNC", "ALT", "GEO", "SURSA_COORD", "DATA_COORD", "LONG", "LAT", "X_STEREO_70", "Y_STEREO_70", "Z_STEREO_70"]
 
     def parse(self):
         if not self.vector_layer.isValid():
             raise ValueError("The provided layer is not valid.")
 
-        for feature in self.vector_layer.getFeatures():
+        features = list(self.vector_layer.getFeatures())
+        for feature in features:
+            attributes = {key: feature[key] for key in feature.fields().names()}
             firida_data = FiridaJT(
                 id = feature.id(),
-                class_id = feature['CLASS_ID'],
-                id_bdi = feature['ID_BDI'],
-                nr_crt = feature['NR_CRT'],
-                iden = feature['IDEN'],
-                class_id_loc = feature['CLASS_ID_LOC'],
-                id_loc = feature['ID_LOC'],
-                nr_crt_loc = feature['NR_CRT_LOC'],
-                class_id_inst_sup = feature['CLASS_ID_LOC'],
-                id_inst_sup = feature['ID_INST_SUP'],
-                nr_crt_inst_sup = feature['NR_CRT_INST_SUP'],
-                jud = feature['JUD'],
-                prim = feature['PRIM'],
-                loc = feature['LOC'],
-                tip_str = feature['TIP_STR'],
-                street = feature['STR'],
-                nr = feature['NR'],
-                etaj = feature['ETAJ'],
-                rol_firi = feature['ROL_FIRI'],
-                tip_firi_ret = feature['TIP_FIRI_RET'],
-                tip_firi_br = feature['TIP_FIRI_BR'],
-                ampl = feature['AMPL'],
-                mat = feature['MAT'],
-                lim_prop = feature['LIM_PROP'],
-                def_firi = feature['DEF_FIRI'],
-                nr_cir = feature['NR_CIR'],
-                an_func = feature['AN_FUNC'],
-                alt = feature['ALT'],
-                geo = feature['GEO'],
-                sursa_coord = feature['SURSA_COORD'],
-                data_coord = feature['DATA_COORD'],
-                long = feature['LONG'],
-                lat = feature['LAT'],
-                x_stereo_70 = feature['X_STEREO_70'],
-                y_stereo_70 = feature['Y_STEREO_70'],
-                z_stereo_70 = feature['Z_STEREO_70']
+                class_id = attributes.get('CLASS_ID'),
+                id_bdi = attributes.get('ID_BDI'),
+                nr_crt = attributes.get('NR_CRT'),
+                iden = attributes.get('IDEN'),
+                class_id_loc = attributes.get('CLASS_ID_LOC'),
+                id_loc = attributes.get('ID_LOC'),
+                nr_crt_loc = attributes.get('NR_CRT_LOC'),
+                class_id_inst_sup = attributes.get('CLASS_ID_LOC'),
+                id_inst_sup = attributes.get('ID_INST_SUP'),
+                nr_crt_inst_sup = attributes.get('NR_CRT_INST_SUP'),
+                jud = attributes.get('JUD'),
+                prim = attributes.get('PRIM'),
+                loc = attributes.get('LOC'),
+                tip_str = attributes.get('TIP_STR'),
+                street = attributes.get('STR'),
+                nr = attributes.get('NR'),
+                etaj = attributes.get('ETAJ'),
+                rol_firi = attributes.get('ROL_FIRI'),
+                tip_firi_ret = attributes.get('TIP_FIRI_RET'),
+                tip_firi_br = attributes.get('TIP_FIRI_BR'),
+                ampl = attributes.get('AMPL'),
+                mat = attributes.get('MAT'),
+                lim_prop = attributes.get('LIM_PROP'),
+                def_firi = attributes.get('DEF_FIRI'),
+                nr_cir = attributes.get('NR_CIR'),
+                an_func = attributes.get('AN_FUNC'),
+                alt = attributes.get('ALT'),
+                geo = attributes.get('GEO'),
+                sursa_coord = attributes.get('SURSA_COORD'),
+                data_coord = attributes.get('DATA_COORD'),
+                long = attributes.get('LONG'),
+                lat = attributes.get('LAT'),
+                x_stereo_70 = attributes.get('X_STEREO_70'),
+                y_stereo_70 = attributes.get('Y_STEREO_70'),
+                z_stereo_70 = attributes.get('Z_STEREO_70')
             )
             self.firide.append(firida_data)
 
@@ -180,7 +152,20 @@ class IgeaFiridaParser:
     def get_data(self):
         return self.firide
     
+    def resolve_mapping(self, parser, mapping):
+        if isinstance(mapping, tuple):
+            parts = [
+                getattr(parser, element, "").strip() if hasattr(parser, element) else str(element).strip()
+                for element in mapping
+            ]
+            return " ".join(filter(None, parts)).strip()
+        elif callable(mapping):
+            # If mapping is a function, execute it
+            return mapping(parser)
+        return getattr(parser, mapping, "") if mapping else ""
+
     def write_to_excel_sheet(self, excel_file, split=False, done_split=False):
+        QgsMessageLog.logMessage(f"Writing FIRIDA data to Excel file: {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
 
@@ -189,11 +174,7 @@ class IgeaFiridaParser:
             row = []
             for header in headers:
                 mapping = self.mapping[header]
-                if isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(firida, attr, '')}"
-                else:
-                    value = getattr(firida, mapping, "")
+                value = self.resolve_mapping(firida, mapping)
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
@@ -204,13 +185,12 @@ class IgeaFiridaParser:
         try:
             workbook = load_workbook(excel_file)
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error opening workbook: {e}", "FirideAssistant", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error opening workbook: {e}", "StalpiAssist", level=Qgis.Critical)
             return
 
         if split:
             df_retea = df[df['Rolul firidei'].str.contains('retea', na=False)]
-            df_bransament = df[df['Rolul firidei'].str.contains('bransament', na=False)]
-            sheets = {'FIRIDA RETEA': df_retea, 'FIRIDA BRANSAMENT': df_bransament}
+            sheets = {'FIRIDA RETEA': df_retea}
         else:
             sheets = {'FIRIDA': df}
 
@@ -252,7 +232,8 @@ class IgeaFiridaParser:
         try:
             workbook.save(excel_file)
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error saving workbook: {e}", "FirideAssistant", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error saving workbook: {e}", "StalpiAssist", level=Qgis.Critical)
 
         if not done_split:
             self.write_to_excel_sheet(excel_file, split=True, done_split=True)
+            QgsMessageLog.logMessage(f"Splitting FIRIDA data into separate sheets", "StalpiAssist", level=Qgis.Info)

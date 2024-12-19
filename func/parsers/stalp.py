@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
+from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class StalpJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, id_linie_jt_1, nr_crt_linie_jt_1, id_linie_jt_2, nr_crt_linie_jt_2, id_linie_jt_3, nr_crt_linie_jt_3, id_linie_jt_4, nr_crt_linie_jt_4, id_linie_jt_5, nr_crt_linie_jt_5, id_linie_jt_6, nr_crt_linie_jt_6, id_linie_jt_7, nr_crt_linie_jt_7, denum, nr_ins_stp, desc_det, prop, det_prop, tip_zona_amp, jud, prim, loc, tip_str, str, tip_cir, tip_mat, desc_ctg_mt_jt, nr_cir, uzura_stp, tip_fund, obs_fund, anc, obs_anc, adaos, obs_adaos, fib_opt, nr_cir_fo, prop_fo, ltc, nr_cir_ltc, prop_ltc, catv, nr_cir_catv, prop_catv, echip_com, disp_cuib_pas, nr_cons_c2s, nr_cons_c4s, nr_cons_c2t, nr_cons_c4t, nr_cons_c2br, nr_cons_c4br, tip_leg_jt, priza_leg_pam, corp_il, cutie_sel, geo, lat, long, alt, x_stereo_70, y_stereo_70, z_stereo_70, sursa_coord, data_coord, obs, img_file_1, img_file_2, img_file_3, img_file_4):
@@ -93,12 +94,12 @@ class IgeaStalpParser:
             "Nr crt": "nr_crt",
             "ID_linie JT": "id_linie_jt",
             "Denumire": "denum",
-            "Descrierea BDI": "",
+            "Descrierea BDI": ("STP.", " ", "denum", "str", ),
             "Numar inscriptionat pe stalp": "nr_ins_stp",
             "Descriere detaliata": "desc_det",
             "Proprietar": "prop",
             "Detaliere Proprietar": "det_prop",
-            "Tip zona de amplasare": "tip_zona_amp",
+            "Tip zona de amplasare": lambda stalp: stalp.tip_zona_amp if stalp.tip_zona_amp else "Rural",
             "Judet": "jud",
             "Primarie": "prim",
             "Localitate": "loc",
@@ -108,7 +109,7 @@ class IgeaStalpParser:
             "Tip material": "tip_mat",
             "Descriere catalog MT, JT": "desc_ctg_mt_jt",
             "Numar circuite": "nr_cir",
-            "Defecte stalp": "uzura_stp",
+            "Defecte stalp": "", # ?
             "Tipul fundatiei": "tip_fund",
             "Observatii fundatie": "obs_fund",
             "Ancora": "anc",
@@ -126,11 +127,12 @@ class IgeaStalpParser:
             "Proprietar CATV": "prop_catv",
             "Echipamente comunicatii": "echip_com",
             "Dispozitiv cuib pasari": "disp_cuib_pas",
-            "Tipul de consola": "tip_leg_jt",
+            "Tipul de consola": "0", # what?
+            "Tip legaturi JT": "tip_leg_jt",
             "Priza de legare la pamant": "priza_leg_pam",
             "Corp iluminat": "corp_il",
             "Cutie selectivitate/cutie sectionare": "cutie_sel",
-            "Latitudine (grade zecimale)": "lat",
+            "Latitudine (grade zecimale)": lambda stalp: f"{stalp.lat:.8f}" if stalp.lat else "",
             "Longitudine (grade zecimale)": "long",
             "Altitudine (m)": "alt",
             "x - STEREO 70 (m)": "x_stereo_70",
@@ -142,82 +144,7 @@ class IgeaStalpParser:
             "Observatii": "obs"
         }
         
-        self.qgis_mapping = {
-            "CLASS_ID": "CLASS_ID",
-            "ID_BDI": "ID_BDI",
-            "NR_CRT": "NR_CRT",
-            "ID_LINIE_J": "ID_LINIE_JT1",
-            "NR_CRT_LIN": "NR_CRT_LINIE_JT_1",
-            "ID_LINIE_1": "ID_LINIE_JT_2",
-            "NR_CRT_L_1": "NR_CRT_LINIE_JT_2",
-            "ID_LINIE_2": "ID_LINIE_JT_3",
-            "NR_CRT_L_2": "NR_CRT_LINIE_JT_3",
-            "ID_LINIE_3": "ID_LINIE_JT_4",
-            "NR_CRT_L_3": "NR_CRT_LINIE_JT_4",
-            "ID_LINIE_4": "ID_LINIE_JT_5",
-            "NR_CRT_L_4": "NR_CRT_LINIE_JT_5",
-            "ID_LINIE_5": "ID_LINIE_JT_6",
-            "NR_CRT_L_5": "NR_CRT_LINIE_JT_6",
-            "ID_LINIE_6": "ID_LINIE_JT_7",
-            "NR_CRT_L_6": "NR_CRT_LINIE_JT_7",
-            "DENUM": "DENUM",
-            "NR_INS_STP": "NR_INS_STP",
-            "DESC_DET": "DESC_DET",
-            "PROP": "PROP",
-            "DET_PROP": "DET_PROP",
-            "TIP_ZONA_A": "TIP_ZONA_AMP",
-            "JUD": "JUD",
-            "PRIM": "PRIM",
-            "LOC": "LOC",
-            "TIP_STR": "TIP_STR",
-            "STR": "STR",
-            "TIP_CIR": "TIP_CIR",
-            "TIP_MAT": "TIP_MAT",
-            "DESC_CTG_M": "DESC_CTG_MT_JT",
-            "NR_CIR": "NR_CIR",
-            "UZURA_STP": "UZURA_STP",
-            "TIP_FUND": "TIP_FUND",
-            "OBS_FUND": "OBS_FUND",
-            "ANC": "ANC",
-            "OBS_ANC": "OBS_ANC",
-            "ADAOS": "ADAOS",
-            "OBS_ADAOS": "OBS_ADAOS",
-            "FIB_OPT": "FIB_OPT",
-            "NR_CIR_FO": "NR_CIR_FO",
-            "PROP_FO": "PROP_FO",
-            "LTC": "LTC",
-            "NR_CIR_LTC": "NR_CIR_LTC",
-            "PROP_LTC": "PROP_LTC",
-            "CATV": "CATV",
-            "NR_CIR_CAT": "NR_CIR_CATV",
-            "PROP_CATV": "PROP_CATV",
-            "ECHIP_COM": "ECHIP_COM",
-            "DISP_CUIB_": "DISP_CUIB_PAS",
-            "NR_CONS_C2": "NR_CONS_C2S",
-            "NR_CONS_C4": "NR_CONS_C4S",
-            "NR_CONS__1": "NR_CONS_C2T",
-            "NR_CONS__2": "NR_CONS_C4T",
-            "NR_CONS__3": "NR_CONS_C2BR",
-            "NR_CONS__4": "NR_CONS_C4BR",
-            "TIP_LEG_JT": "TIP_LEG_JT",
-            "PRIZA_LEG_": "PRIZA_LEG_PAM",
-            "CORP_IL": "CORP_IL",
-            "CUTIE_SEL": "CUTIE_SEL",
-            "GEO": "GEO",
-            "LAT": "LAT",
-            "LONG": "LONG",
-            "ALT": "ALT",
-            "X_STEREO_70": "X_STEREO_70",
-            "Y_STEREO_70": "Y_STEREO_70",
-            "Z_STEREO_70": "Z_STEREO_70",
-            "SURSA_COORD": "SURSA_COORD",
-            "DATA_COORD": "DATA_COORD",
-            "OBS": "OBS",
-            "IMG_FILE_1": "IMG_FILE_1",
-            "IMG_FILE_2": "IMG_FILE_2",
-            "IMG_FILE_3": "IMG_FILE_3",
-            "IMG_FILE_4": "IMG_FILE_4"
-        }
+        # self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "ID_LINIE_JT", "NR_CRT_LINIE_JT_1", "ID_LINIE_JT_2", "NR_CRT_LINIE_JT_2", "ID_LINIE_JT_3", "NR_CRT_LINIE_JT_3", "ID_LINIE_JT_4", "NR_CRT_LINIE_JT_4", "ID_LINIE_JT_5", "NR_CRT_LINIE_JT_5", "ID_LINIE_JT_6", "NR_CRT_LINIE_JT_6", "ID_LINIE_JT_7", "NR_CRT_LINIE_JT_7", "DENUM", "NR_INS_STP", "DESC_DET", "PROP", "DET_PROP", "TIP_ZONA_AMP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "TIP_CIR", "TIP_MAT", "DESC_CTG_MT_JT", "NR_CIR", "UZURA_STP", "TIP_FUND", "OBS_FUND", "ANC", "OBS_ANC", "ADAOS", "OBS_ADAOS", "FIB_OPT", "NR_CIR_FO", "PROP_FO", "LTC", "NR_CIR_LTC", "PROP_LTC", "CATV", "NR_CIR_CAT", "PROP_CATV", "ECHIP_COM", "DISP_CUIB_PAS", "NR_CONS_C2S", "NR_CONS_C4S", "NR_CONS_C2T", "NR_CONS_C4T", "NR_CONS_C2BR", "NR_CONS_C4BR", "TIP_LEG_JT", "PRIZA_LEG_PAM", "CORP_IL", "CUTIE_SEL", "GEO", "LAT", "LONG", "ALT", "X_STEREO_70", "Y_STEREO_70", "Z_STEREO_70", "SURSA_COORD", "DATA_COORD", "OBS", "IMG_FILE_1", "IMG_FILE_2", "IMG_FILE_3", "IMG_FILE_4"]
             
             
     def parse(self):
@@ -230,26 +157,26 @@ class IgeaStalpParser:
                 class_id=feature["CLASS_ID"],
                 id_bdi=feature["ID_BDI"],
                 nr_crt=feature["NR_CRT"],
-                id_linie_jt_1=feature["ID_LINIE_J"],
-                nr_crt_linie_jt_1=feature["NR_CRT_LIN"],
-                id_linie_jt_2=feature["ID_LINIE_1"],
-                nr_crt_linie_jt_2=feature["NR_CRT_L_1"],
-                id_linie_jt_3=feature["ID_LINIE_2"],
-                nr_crt_linie_jt_3=feature["NR_CRT_L_2"],
-                id_linie_jt_4=feature["ID_LINIE_3"],
-                nr_crt_linie_jt_4=feature["NR_CRT_L_3"],
-                id_linie_jt_5=feature["ID_LINIE_4"],
-                nr_crt_linie_jt_5=feature["NR_CRT_L_4"],
-                id_linie_jt_6=feature["ID_LINIE_5"],
-                nr_crt_linie_jt_6=feature["NR_CRT_L_5"],
-                id_linie_jt_7=feature["ID_LINIE_6"],
-                nr_crt_linie_jt_7=feature["NR_CRT_L_6"],
+                id_linie_jt_1=feature["ID_LINIE_JT_1"],
+                nr_crt_linie_jt_1=feature["NR_CRT_LINIE_JT_1"],
+                id_linie_jt_2=feature["ID_LINIE_JT_2"],
+                nr_crt_linie_jt_2=feature["NR_CRT_LINIE_JT_2"],
+                id_linie_jt_3=feature["ID_LINIE_JT_3"],
+                nr_crt_linie_jt_3=feature["NR_CRT_LINIE_JT_3"],
+                id_linie_jt_4=feature["ID_LINIE_JT_4"],
+                nr_crt_linie_jt_4=feature["NR_CRT_LINIE_JT_4"],
+                id_linie_jt_5=feature["ID_LINIE_JT_5"],
+                nr_crt_linie_jt_5=feature["NR_CRT_LINIE_JT_5"],
+                id_linie_jt_6=feature["ID_LINIE_JT_6"],
+                nr_crt_linie_jt_6=feature["NR_CRT_LINIE_JT_6"],
+                id_linie_jt_7=feature["ID_LINIE_JT_7"],
+                nr_crt_linie_jt_7=feature["NR_CRT_LINIE_JT_7"],
                 denum=feature["DENUM"],
                 nr_ins_stp=feature["NR_INS_STP"],
                 desc_det=feature["DESC_DET"],
                 prop=feature["PROP"],
                 det_prop=feature["DET_PROP"],
-                tip_zona_amp=feature["TIP_ZONA_A"],
+                tip_zona_amp=feature["TIP_ZONA_AMP"],
                 jud=feature["JUD"],
                 prim=feature["PRIM"],
                 loc=feature["LOC"],
@@ -257,7 +184,7 @@ class IgeaStalpParser:
                 str=feature["STR"],
                 tip_cir=feature["TIP_CIR"],
                 tip_mat=feature["TIP_MAT"],
-                desc_ctg_mt_jt=feature["DESC_CTG_M"],
+                desc_ctg_mt_jt=feature["DESC_CTG_MT_JT"],
                 nr_cir=feature["NR_CIR"],
                 uzura_stp=feature["UZURA_STP"],
                 tip_fund=feature["TIP_FUND"],
@@ -273,18 +200,18 @@ class IgeaStalpParser:
                 nr_cir_ltc=feature["NR_CIR_LTC"],
                 prop_ltc=feature["PROP_LTC"],
                 catv=feature["CATV"],
-                nr_cir_catv=feature["NR_CIR_CAT"],
+                nr_cir_catv=feature["NR_CIR_CATV"],
                 prop_catv=feature["PROP_CATV"],
                 echip_com=feature["ECHIP_COM"],
-                disp_cuib_pas=feature["DISP_CUIB_"],
-                nr_cons_c2s=feature["NR_CONS_C2"],
-                nr_cons_c4s=feature["NR_CONS_C4"],
-                nr_cons_c2t=feature["NR_CONS__1"],
-                nr_cons_c4t=feature["NR_CONS__2"],
-                nr_cons_c2br=feature["NR_CONS__3"],
-                nr_cons_c4br=feature["NR_CONS__4"],
+                disp_cuib_pas=feature["DISP_CUIB_PAS"],
+                nr_cons_c2s=feature["NR_CONS_C2S"],
+                nr_cons_c4s=feature["NR_CONS_C4S"],
+                nr_cons_c2t=feature["NR_CONS_C2T"],
+                nr_cons_c4t=feature["NR_CONS_C4T"],
+                nr_cons_c2br=feature["NR_CONS_C2BR"],
+                nr_cons_c4br=feature["NR_CONS_C4BR"],
                 tip_leg_jt=feature["TIP_LEG_JT"],
-                priza_leg_pam=feature["PRIZA_LEG_"],
+                priza_leg_pam=feature["PRIZA_LEG_PAM"],
                 corp_il=feature["CORP_IL"],
                 cutie_sel=feature["CUTIE_SEL"],
                 geo=feature["GEO"],
@@ -310,7 +237,20 @@ class IgeaStalpParser:
     def get_data(self):
         return self.stalpi
 
+    def resolve_mapping(self, parser, mapping):
+        if isinstance(mapping, tuple):
+            parts = [
+                getattr(parser, element, "").strip() if hasattr(parser, element) else str(element).strip()
+                for element in mapping
+            ]
+            return " ".join(filter(None, parts)).strip()
+        elif callable(mapping):
+            # If mapping is a function, execute it
+            return mapping(parser)
+        return getattr(parser, mapping, "") if mapping else ""
+    
     def write_to_excel_sheet(self, excel_file):
+        QgsMessageLog.logMessage(f"Writing stalpi to excel file: {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -319,17 +259,12 @@ class IgeaStalpParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                if not mapping:
-                    value = ""
-                elif isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(stalp, attr, '')}"
-                else:
-                    value = getattr(stalp, mapping, "")
-                # Replace None with an empty string
+                value = self.resolve_mapping(stalp, mapping)
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
+                QgsMessageLog.logMessage(f"Writing {value} to row with header {header}", "StalpiAssist", level=Qgis.Info)
             data.append(row)
+        QgsMessageLog.logMessage(f"Prepared data with {len(data)} rows", "StalpiAssist", level=Qgis.Info)
         
         workbook = load_workbook(excel_file)
         sheet = workbook["STÂLP"]
@@ -337,12 +272,13 @@ class IgeaStalpParser:
         start_row = sheet.max_row + 1
         header_row = sheet.max_row - 1
         existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
+        QgsMessageLog.logMessage(f"Existing headers found: {existing_headers}", "StalpiAssist", level=Qgis.Info)
         
-        # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip() in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header.strip()], value=cell_value if cell_value is not None else "")
+        QgsMessageLog.logMessage(f"Data written to the sheet starting from row {start_row}", "StalpiAssist", level=Qgis.Info)
         
         # Add borders to the cells
         thin_border = Border(
@@ -357,5 +293,7 @@ class IgeaStalpParser:
                 if header.strip() in existing_headers:
                     cell = sheet.cell(row=row_idx, column=existing_headers[header.strip()])
                     cell.border = thin_border
+        QgsMessageLog.logMessage(f"Borders added to cells for rows {start_row} to {start_row + len(data) - 1}", "StalpiAssist", level=Qgis.Info)
         
         workbook.save(excel_file)
+        QgsMessageLog.logMessage(f"Excel file {excel_file} saved successfully", "StalpiAssist", level=Qgis.Info)

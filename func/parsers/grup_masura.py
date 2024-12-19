@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
+from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class GrupMasuraJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, class_id_loc, id_loc, nr_crt_loc, class_id_inst_sup, id_inst_sup, nr_crt_inst_sup, jud, prim, loc, tip_str, str, nr_scara, etaj, ap):
@@ -37,10 +38,10 @@ class IgeaGrupMasuraParser:
         self.mapping = {
             "Nr.crt": "nr_crt",
             "Denumire": "denum",
-            "Descrierea BDI": "",
+            "Descrierea BDI": ("GRUP MASURA", "denum"),
             "Nr.crt_Locatia": "nr_crt_loc",
-            "Locatia": "id_loc",
-            "ID_Descrierea instalatiei uperioare": "id_inst_sup",
+            "Locatia": ("FB", "denum"),
+            "ID_Descrierea instalatiei uperioare": "class_id_inst_sup",
             "Descrierea instalatiei uperioare": "nr_crt_inst_sup",
             "Judet": "jud",
             "Primarie": "prim",
@@ -52,52 +53,35 @@ class IgeaGrupMasuraParser:
             "Apartament": "ap"
         }
         
-        self.qgis_mapping = {
-            "CLASS_ID": "CLASS_ID",
-            "ID_BDI": "ID_BDI",
-            "NR_CRT": "NR_CRT",
-            "DENUM": "DENUM",
-            "CLASS_ID_LOC": "CLASS_ID_LOC",
-            "ID_LOC": "ID_LOC",
-            "NR_CRT_LOC": "NR_CRT_LOC",
-            "CLASS_ID_LOC": "CLASS_ID_INST_SUP",
-            "ID_INST_SUP": "ID_INST_SUP",
-            "NR_CRT_INST_SUP": "NR_CRT_INST_SUP",
-            "JUD": "JUD",
-            "PRIM": "PRIM",
-            "LOC": "LOC",
-            "TIP_STR": "TIP_STR",
-            "STR": "STR",
-            "NR_SCARA": "NR_SCARA",
-            "ETAJ": "ETAJ",
-            "AP": "AP"
-        }
+        # self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_INST_SUP", "ID_INST_SUP", "NR_CRT_INST_SUP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "NR_SCARA", "ETAJ", "AP"]
             
     def parse(self):
         if not self.vector_layer.isValid():
             raise ValueError("The provided layer is not valid.")
 
-        for feature in self.vector_layer.getFeatures():
+        features = list(self.vector_layer.getFeatures())
+        for feature in features:
+            attributes = {key: feature[key] for key in feature.fields().names()}
             grup_data = GrupMasuraJT(
                 id=feature.id(),
-                class_id=feature["CLASS_ID"],
-                id_bdi=feature["ID_BDI"],
-                nr_crt=feature["NR_CRT"],
-                denum=feature["DENUM"],
-                class_id_loc=feature["CLASS_ID_LOC"],
-                id_loc=feature["ID_LOC"],
-                nr_crt_loc=feature["NR_CRT_LOC"],
-                class_id_inst_sup=feature["CLASS_ID_LOC"],
-                id_inst_sup=feature["ID_INST_SUP"],
-                nr_crt_inst_sup=feature["NR_CRT_INST_SUP"],
-                jud=feature["JUD"],
-                prim=feature["PRIM"],
-                loc=feature["LOC"],
-                tip_str=feature["TIP_STR"],
-                str=feature["STR"],
-                nr_scara=feature["NR_SCARA"],
-                etaj=feature["ETAJ"],
-                ap=feature["AP"]
+                class_id=attributes.get("CLASS_ID"),
+                id_bdi=attributes.get("ID_BDI"),
+                nr_crt=attributes.get("NR_CRT"),
+                denum=attributes.get("DENUM"),
+                class_id_loc=attributes.get("CLASS_ID_LOC"),
+                id_loc=attributes.get("ID_LOC"),
+                nr_crt_loc=attributes.get("NR_CRT_LOC"),
+                class_id_inst_sup=attributes.get("CLASS_ID_LOC"),
+                id_inst_sup=attributes.get("ID_INST_SUP"),
+                nr_crt_inst_sup=attributes.get("NR_CRT_INST_SUP"),
+                jud=attributes.get("JUD"),
+                prim=attributes.get("PRIM"),
+                loc=attributes.get("LOC"),
+                tip_str=attributes.get("TIP_STR"),
+                str=attributes.get("STR"),
+                nr_scara=attributes.get("NR_SCARA"),
+                etaj=attributes.get("ETAJ"),
+                ap=attributes.get("AP")
             )
             self.grupuri.append(grup_data)
     
@@ -107,7 +91,20 @@ class IgeaGrupMasuraParser:
     def get_data(self):
         return self.grupuri
     
+    def resolve_mapping(self, parser, mapping):
+        if isinstance(mapping, tuple):
+            parts = [
+                getattr(parser, element, "").strip() if hasattr(parser, element) else str(element).strip()
+                for element in mapping
+            ]
+            return " ".join(filter(None, parts)).strip()
+        elif callable(mapping):
+            # If mapping is a function, execute it
+            return mapping(parser)
+        return getattr(parser, mapping, "") if mapping else ""
+
     def write_to_excel_sheet(self, excel_file):
+        QgsMessageLog.logMessage(f"Writing grup masura to {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -116,13 +113,7 @@ class IgeaGrupMasuraParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                if not mapping:
-                    value = ""
-                elif isinstance(mapping, tuple):
-                    prefix, attr = mapping
-                    value = f"{prefix} {getattr(grup, attr, '')}"
-                else:
-                    value = getattr(grup, mapping, "")
+                value = self.resolve_mapping(grup, mapping)
                 # Replace None with an empty string
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
@@ -138,8 +129,8 @@ class IgeaGrupMasuraParser:
         # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip() in existing_headers:
-                    sheet.cell(row=row_idx, column=existing_headers[header.strip()], value=cell_value if cell_value is not None else "")
+                if header.strip(" ") in existing_headers:
+                    sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
         
         # Add borders to the cells
         thin_border = Border(
