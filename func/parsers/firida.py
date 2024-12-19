@@ -2,7 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
 import pandas as pd
-from qgis.core import QgsMessageLog, Qgis # type: ignore
+from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 
 # from ..helper_functions import HelperBase, SHPProcessor
 
@@ -67,9 +67,9 @@ class IgeaFiridaParser:
             "Identificator": "iden",
             "Descrierea BDI": ("FR ", "iden"),          # might not be correct
             "ID_Locatia": "nr_crt_loc",
-            "Locatia": "",                              # ?
+            "Locatia": ("BR ", "denum"),                # might not be correct
             "ID_Descrierea instalatiei superioare": "id_inst_sup",
-            "Descrierea instalatiei superioare": "",
+            "Descrierea instalatiei superioare": lambda fr: self.get_linie_value(fr),
             "Judet": "jud",
             "Primarie": "prim",
             "Localitate": "loc",
@@ -237,3 +237,25 @@ class IgeaFiridaParser:
         if not done_split:
             self.write_to_excel_sheet(excel_file, split=True, done_split=True)
             QgsMessageLog.logMessage(f"Splitting FIRIDA data into separate sheets", "StalpiAssist", level=Qgis.Info)
+
+    def get_linie_value(self, feature):
+        '''
+        match with LINIE_JT ID_BDI and return LINIE_JT DENUM
+        '''
+        
+        linie_layer = QgsProject.instance().mapLayersByName('LINIE_JT')[0]
+        if not linie_layer:
+            QgsMessageLog.logMessage("LINIE_JT layer not found.", "StalpiAssist", level=Qgis.Critical)
+            return ""
+        
+        linie_features = linie_layer.getFeatures()
+        matching_feature = [
+            linie for linie in linie_features
+            if linie['ID_BDI'] == feature.id_inst_sup
+        ]
+        
+        if not matching_feature:
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Info)
+            return ""
+        
+        return matching_feature[0]['DENUM'] if matching_feature else ""

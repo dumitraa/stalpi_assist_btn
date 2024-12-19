@@ -1,7 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
-from qgis.core import QgsMessageLog, Qgis # type: ignore
+from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 
 class TronsonJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, nr_crt_loc, 
@@ -42,10 +42,6 @@ class IgeaTronsonParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.tronsoane: List[TronsonJT] = []
-        # self.helper = HelperBase()
-        # self.layers = self.helper.get_layers()
-        # self.processor = SHPProcessor(self.layers)
-        # self.linii = self.processor.map_linie_denum()
         
         self.mapping = {
             "Nr. crt": "nr_crt",
@@ -54,11 +50,11 @@ class IgeaTronsonParser:
             "Descrierea BDI": ("TR ", "denum"),
             "Proprietar": "prop",
             "ID_Locatia": "id_loc",
-            "Locatia": "",
+            "Locatia": lambda tr: self.get_linie_value(tr),
             "Nr.crt_Inceput de tronson": "nr_crt_inc_tr",
-            "Inceput de tronson": lambda tronson: tronson.denum.split('-')[0].strip() if tronson.denum else "",
+            "Inceput de tronson": lambda tr: tr.denum.split('-')[0].strip() if tr.denum else "",
             "Nr.crt_Final de tronson": "nr_crt_fin_tr",
-            "Final de tronson": lambda tronson: tronson.denum.split('-')[1].strip() if tronson.denum else "",
+            "Final de tronson": lambda tr: tr.denum.split('-')[1].strip() if tr.denum else "",
             "Tipul tronsonului": "tip_tr",
             "Tip conductor": "tip_cond",
             "Lungimea tronsonului (km)": "lung_tr",
@@ -172,3 +168,25 @@ class IgeaTronsonParser:
                     cell.border = thin_border
         
         workbook.save(excel_file)
+        
+    def get_linie_value(self, feature):
+        '''
+        match with LINIE_JT ID_BDI and return LINIE_JT DENUM
+        '''
+        
+        linie_layer = QgsProject.instance().mapLayersByName('LINIE_JT')[0]
+        if not linie_layer:
+            QgsMessageLog.logMessage("LINIE_JT layer not found.", "StalpiAssist", level=Qgis.Critical)
+            return ""
+        
+        linie_features = linie_layer.getFeatures()
+        matching_feature = [
+            linie for linie in linie_features
+            if linie['ID_BDI'] == feature.id_loc
+        ]
+        
+        if not matching_feature:
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Info)
+            return ""
+        
+        return matching_feature[0]['DENUM'] if matching_feature else ""

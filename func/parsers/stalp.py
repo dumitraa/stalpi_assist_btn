@@ -127,7 +127,7 @@ class IgeaStalpParser:
             "Proprietar CATV": "prop_catv",
             "Echipamente comunicatii": "echip_com",
             "Dispozitiv cuib pasari": "disp_cuib_pas",
-            "Tipul de consola": "0", # what?
+            "Tipul de consola": lambda _: "0",
             "Tip legaturi JT": "tip_leg_jt",
             "Priza de legare la pamant": "priza_leg_pam",
             "Corp iluminat": "corp_il",

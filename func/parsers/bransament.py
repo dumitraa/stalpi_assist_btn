@@ -1,14 +1,12 @@
 from typing import List
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Side
-from qgis.core import QgsMessageLog, Qgis # type: ignore
-
-# from ..helper_functions import HelperBase, SHPProcessor
+from qgis.core import QgsMessageLog, Qgis, QgsProject  # type: ignore
 
 class BransamentJT():
     def __init__(self, id, id_bdi, nr_crt, denum, class_id_loc, id_loc, nr_crt_loc, 
                  class_id_plc_br, id_plc_br, nr_crt_plc_br, tip_br, tip_cond, lung, jud, 
-                 prim, loc, tip_str, street, nr_imob, geo, sursa_coord, data_coord, obs):
+                 prim, loc, tip_str, street, nr_imob, geo, sursa_coord, data_coord, obs, geometry):
         self.id = id
         self.id_bdi = id_bdi
         self.nr_crt = nr_crt
@@ -32,30 +30,28 @@ class BransamentJT():
         self.sursa_coord = sursa_coord
         self.data_coord = data_coord
         self.obs = obs
+        self.geometry = geometry  # Add geometry as a proper attribute
+
+    def get_geometry(self):
+        return self.geometry
 
     def __repr__(self):
         return f"BransamentJT(nr_crt={self.nr_crt}, denum={self.denum}, geo={self.geo})"
-
 
 class IgeaBransamentParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.bransamente: List[BransamentJT] = []
-        # self.helper = HelperBase()
-        # self.layers = self.helper.get_layers()
-        # self.processor = SHPProcessor(self.layers)
-        # self.linii = self.processor.map_linie_denum()
-        
         self.mapping = {
             "Nr. Crt": "nr_crt",
             "Denumire": "denum",
             "Descrierea BDI": ("BR ", "denum"),
             "ID_Locatia": "id_loc",
-            "Locatia": "",
+            "Locatia": lambda br: self.get_linie_value(br),
             "ID_PAPT/Nr. Crt_Plecare bransament": "nr_crt_plc_br",
-            "Plecare bransament": "",                               # to determine
+            "Plecare bransament": lambda br: self.get_stalpi_value(br),
             "Tip bransament": "tip_br",
-            "Tipul dispunerii": lambda bransament: "LES" if "XABY" in bransament.tip_cond or "ACYABY" in bransament.tip_cond else "LEA",
+            "Tipul dispunerii": lambda br: "LES" if "XABY" in br.tip_cond or "ACYABY" in br.tip_cond else "LEA",
             "Tip conductor": "tip_cond",
             "Lungime (m)": "lung",
             "Judet": "jud",
@@ -69,9 +65,6 @@ class IgeaBransamentParser:
             "Data actualizarii coordonatelor": "data_coord",
             "Observatii": "obs",
         }
-        
-        # self.qgis_mapping = ["ID_BDI", "NR_CRT", "DENUM", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_PLC_BR", "ID_PLC_BR", "NR_CRT_PLC_BR", "TIP_BR", "TIP_COND", "LUNG", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "NR_IMOB", "GEO", "SURSA_COORD", "DATA_COORD", "OBS"]
-        
 
     def parse(self):
         if not self.vector_layer.isValid():
@@ -79,7 +72,6 @@ class IgeaBransamentParser:
 
         features = list(self.vector_layer.getFeatures())
         for feature in features:
-            attributes = {key: feature[key] for key in feature.fields().names()}
             bransament_data = BransamentJT(
                 id=feature.id(),
                 id_bdi=feature['ID_BDI'],
@@ -103,11 +95,11 @@ class IgeaBransamentParser:
                 geo=feature['GEO'],
                 sursa_coord=feature['SURSA_COORD'],
                 data_coord=feature['DATA_COORD'],
-                obs=feature['OBS']
+                obs=feature['OBS'],
+                geometry=feature.geometry()  # Pass the feature's geometry here
             )
-
             self.bransamente.append(bransament_data)
-            
+
     def get_name(self):
         return "BRANSAMENT_XML_"
 
@@ -122,16 +114,14 @@ class IgeaBransamentParser:
             ]
             return " ".join(filter(None, parts)).strip()
         elif callable(mapping):
-            # If mapping is a function, execute it
             return mapping(parser)
         return getattr(parser, mapping, "") if mapping else ""
-
 
     def write_to_excel_sheet(self, excel_file):
         QgsMessageLog.logMessage(f"Writing bransamente to excel file: {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
-        
+
         for bransament in self.bransamente:
             row = []
             for header in headers:
@@ -140,34 +130,80 @@ class IgeaBransamentParser:
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
             data.append(row)
-                
+
         try:
             workbook = load_workbook(excel_file)
             sheet = workbook["BRANSAMENT"]
         except Exception as e:
             return
-        
+
         start_row = sheet.max_row + 1
         header_row = sheet.max_row - 1
         existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
-                
+
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip(" ") in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
-        
+
         thin_border = Border(left=Side(style='thin'), 
                             right=Side(style='thin'), 
                             top=Side(style='thin'), 
                             bottom=Side(style='thin'))
-        
+
         for row_idx, row_data in enumerate(data, start=start_row):
             for header in enumerate(headers, start=1):
                 if header in existing_headers:
                     cell = sheet.cell(row=row_idx, column=existing_headers[header])
                     cell.border = thin_border
-        
+
         try:
             workbook.save(excel_file)
         except Exception as e:
             QgsMessageLog.logMessage(f"Error saving workbook: {e}", "StalpiAssist", level=Qgis.Critical)
+
+    def get_stalpi_value(self, bransament_feature):
+        if not bransament_feature.get_geometry():
+            QgsMessageLog.logMessage("Bransament feature has no geometry.", "StalpiAssist", level=Qgis.Warning)
+            return ""
+
+        stalp_layer = QgsProject.instance().mapLayersByName('STALP_XML_')[0]
+        if not stalp_layer:
+            QgsMessageLog.logMessage("STALP_XML_ layer not found.", "StalpiAssist", level=Qgis.Critical)
+            return ""
+
+        stalpi_features = stalp_layer.getFeatures()
+        intersecting_features = [
+            stalp for stalp in stalpi_features 
+            if stalp.geometry() and stalp.geometry().intersects(bransament_feature.get_geometry())
+        ]
+
+        if not intersecting_features:
+            QgsMessageLog.logMessage("No intersecting features found.", "StalpiAssist", level=Qgis.Info)
+            return ""
+
+        aggregated_value = [
+            f"STP. {stalp['DENUM']} {stalp['STR']}" for stalp in intersecting_features
+        ]
+        return aggregated_value[0] if aggregated_value else ""
+
+    def get_linie_value(self, feature):
+        '''
+        Match bransament_feature's id_loc with LINIE_JT's ID_BDI and return LINIE_JT's DENUM.
+        '''
+        linie_layer = QgsProject.instance().mapLayersByName('LINIE_JT')[0]
+        if not linie_layer:
+            QgsMessageLog.logMessage("LINIE_JT layer not found.", "StalpiAssist", level=Qgis.Critical)
+            return ""
+        
+        linie_features = linie_layer.getFeatures()
+        matching_feature = [
+            linie for linie in linie_features
+            if linie['ID_BDI'] == feature.id_loc  # Use bransament_feature's id_loc attribute
+        ]
+        
+        if not matching_feature:
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Info)
+            return ""
+        
+        return matching_feature[0]['DENUM'] if matching_feature else ""
