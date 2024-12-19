@@ -32,10 +32,11 @@ class IgeaLinieParser:
         
         self.mapping = {
             "ID": "id_bdi",
-            "Denumire": "",
+            "Denumire": lambda ln: "",
             "Descrierea BDI": "denum",
-            "Proprietar": lambda linie: linie.prop if linie.prop not in [None, "NULL", "nan"] else "DEER",
+            "Proprietar": lambda ln: ln.prop if ln.prop not in [None, "NULL", "nan"] else "DEER",
             "Locatia": "id_loc",
+            "Descrierea instalatiei superioare": lambda ln: "",
             "Nivel tensiune (kV)": "niv_ten",
             "Tipul liniei": "tip_lin",
         }
@@ -87,7 +88,6 @@ class IgeaLinieParser:
         return getattr(parser, mapping, "") if mapping else ""
 
     def write_to_excel_sheet(self, excel_file):
-        QgsMessageLog.logMessage(f"Writing linie to {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -113,19 +113,5 @@ class IgeaLinieParser:
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip() in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header.strip()], value=cell_value if cell_value is not None else "")
-        
-        # Add borders to the cells
-        thin_border = Border(
-            left=Side(style="thin"),
-            right=Side(style="thin"),
-            top=Side(style="thin"),
-            bottom=Side(style="thin"),
-        )
-        
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for header in headers:
-                if header.strip() in existing_headers:
-                    cell = sheet.cell(row=row_idx, column=existing_headers[header.strip()])
-                    cell.border = thin_border
         
         workbook.save(excel_file)

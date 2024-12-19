@@ -48,9 +48,9 @@ class IgeaDeschidereParser:
             "ID_Locatia": "id_loc",
             "Locatia": "loc",
             "Nr.crt_Inceput": "nr_crt_stp_inc",
-            "Stâlpul de inceput": lambda deschidere: deschidere.denum.split('-')[0].strip() if deschidere.denum else "",
+            "Stâlpul de inceput": lambda ds: ds.denum.split('-')[0].strip() if ds.denum else "",
             "Nr.crt_sfarsit": "nr_crt_stp_term",
-            "Stâlpul terminal": lambda deschidere: deschidere.denum.split('-')[1].strip() if deschidere.denum else "",
+            "Stâlpul terminal": lambda ds: ds.denum.split('-')[1].strip() if ds.denum else "",
             "ID_Tronson JT1": "id_tr_jt1",
             "Tronson JT1": "nr_crt_tr_jt1",
             "ID_Tronson JT2": "id_tr_jt2",
@@ -65,7 +65,7 @@ class IgeaDeschidereParser:
             "Tronson JT6": "nr_crt_tr_jt6",
             "Lungime (m)": "lung",
             "Geometrie": "geo",
-            "Observatii": ""
+            "Observatii": lambda ds: ""
         }
         
         # self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "ID_STP_INC", "NR_CRT_STP_INC", "ID_STP_TERM", "NR_CRT_STP_TERM", "ID_TR_JT1", "NR_CRT_TR_JT1", "ID_TR_JT2", "NR_CRT_TR_JT2", "ID_TR_JT3", "NR_CRT_TR_JT3", "ID_TR_JT4", "NR_CRT_TR_JT4", "ID_TR_JT5", "NR_CRT_TR_JT5", "ID_TR_JT6", "NR_CRT_TR_JT6", "GEO", "LUNG", "SURSA_COORD", "DATA_COORD"]
@@ -127,7 +127,6 @@ class IgeaDeschidereParser:
 
 
     def write_to_excel_sheet(self, excel_file):
-        QgsMessageLog.logMessage(f"Writing deschideri to {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -154,19 +153,5 @@ class IgeaDeschidereParser:
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip(" ") in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
-        
-        # Add borders to the cells
-        thin_border = Border(
-            left=Side(style="thin"),
-            right=Side(style="thin"),
-            top=Side(style="thin"),
-            bottom=Side(style="thin"),
-        )
-        
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for header in headers:
-                if header.strip() in existing_headers:
-                    cell = sheet.cell(row=row_idx, column=existing_headers[header.strip()])
-                    cell.border = thin_border
         
         workbook.save(excel_file)

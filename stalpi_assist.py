@@ -242,8 +242,6 @@ class StalpiAssist:
         del self.toolbar
         
     def register_functions(self):
-        QgsMessageLog.logMessage("Registering custom expression functions", "StalpiAssist", level=Qgis.Info)
-
         def round_wkt_coordinates(values, feature=None, parent=None, context=None):
             def format_point(point):
                 return f"{round(point.x(), 4):.4f} {round(point.y(), 4):.4f}"
@@ -372,5 +370,4 @@ class StalpiAssist:
             except Exception as e:
                 return
         else:
-            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Warning)
-
+            return

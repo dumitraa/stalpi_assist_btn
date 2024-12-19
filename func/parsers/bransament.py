@@ -118,7 +118,6 @@ class IgeaBransamentParser:
         return getattr(parser, mapping, "") if mapping else ""
 
     def write_to_excel_sheet(self, excel_file):
-        QgsMessageLog.logMessage(f"Writing bransamente to excel file: {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
 
@@ -146,17 +145,6 @@ class IgeaBransamentParser:
                 if header.strip(" ") in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
 
-        thin_border = Border(left=Side(style='thin'), 
-                            right=Side(style='thin'), 
-                            top=Side(style='thin'), 
-                            bottom=Side(style='thin'))
-
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for header in enumerate(headers, start=1):
-                if header in existing_headers:
-                    cell = sheet.cell(row=row_idx, column=existing_headers[header])
-                    cell.border = thin_border
-
         try:
             workbook.save(excel_file)
         except Exception as e:
@@ -179,7 +167,7 @@ class IgeaBransamentParser:
         ]
 
         if not intersecting_features:
-            QgsMessageLog.logMessage("No intersecting features found.", "StalpiAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("No intersecting features found.", "StalpiAssist", level=Qgis.Warning)
             return ""
 
         aggregated_value = [
@@ -203,7 +191,7 @@ class IgeaBransamentParser:
         ]
         
         if not matching_feature:
-            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Warning)
             return ""
         
         return matching_feature[0]['DENUM'] if matching_feature else ""

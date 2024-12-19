@@ -104,7 +104,6 @@ class IgeaGrupMasuraParser:
         return getattr(parser, mapping, "") if mapping else ""
 
     def write_to_excel_sheet(self, excel_file):
-        QgsMessageLog.logMessage(f"Writing grup masura to {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -131,19 +130,5 @@ class IgeaGrupMasuraParser:
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip(" ") in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
-        
-        # Add borders to the cells
-        thin_border = Border(
-            left=Side(style="thin"),
-            right=Side(style="thin"),
-            top=Side(style="thin"),
-            bottom=Side(style="thin"),
-        )
-        
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for header in headers:
-                if header.strip() in existing_headers:
-                    cell = sheet.cell(row=row_idx, column=existing_headers[header.strip()])
-                    cell.border = thin_border
-        
+
         workbook.save(excel_file)

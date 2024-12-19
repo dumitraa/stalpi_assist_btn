@@ -74,7 +74,6 @@ class GenerateExcelDialog(QDialog):
 
             # Process parsers and write to the Excel file
             for i, parser in enumerate(self.processor.parsers):
-                QgsMessageLog.logMessage(f"Processing parser {parser.get_name()}", "StalpiAssist", level=Qgis.Info)
                 try:
                     parser.write_to_excel_sheet(new_file_path)
                 except Exception as e:
@@ -109,7 +108,6 @@ class GenerateExcelDialog(QDialog):
         
         if not self.processor:
             try:
-                QgsMessageLog.logMessage("Creating new processor...", "StalpiAssist", level=Qgis.Info)
                 self.processor = SHPProcessor(self.layers)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error creating processor: {e}", "StalpiAssist", level=Qgis.Critical)
@@ -125,10 +123,9 @@ class GenerateExcelDialog(QDialog):
             self.processor = None
             
             try:
-                QgsMessageLog.logMessage("Creating new processor...", "StalpiAssist", level=Qgis.Info)
                 self.processor = SHPProcessor(current_layers)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error creating processor: {e}", "StalpiAssist", level=Qgis.Critical)
                 return
         else:
-            QgsMessageLog.logMessage("No changes in layers. Processor remains unchanged.", "StalpiAssist", level=Qgis.Warning)
+            return

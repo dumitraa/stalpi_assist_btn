@@ -67,7 +67,7 @@ class IgeaFiridaParser:
             "Identificator": "iden",
             "Descrierea BDI": ("FR ", "iden"),          # might not be correct
             "ID_Locatia": "nr_crt_loc",
-            "Locatia": ("BR ", "denum"),                # might not be correct
+            "Locatia": ("BR ", "iden"),                # might not be correct
             "ID_Descrierea instalatiei superioare": "id_inst_sup",
             "Descrierea instalatiei superioare": lambda fr: self.get_linie_value(fr),
             "Judet": "jud",
@@ -165,7 +165,6 @@ class IgeaFiridaParser:
         return getattr(parser, mapping, "") if mapping else ""
 
     def write_to_excel_sheet(self, excel_file, split=False, done_split=False):
-        QgsMessageLog.logMessage(f"Writing FIRIDA data to Excel file: {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
 
@@ -217,18 +216,6 @@ class IgeaFiridaParser:
                     col_idx = existing_headers.get(header, col_idx)  # Fallback to index
                     sheet.cell(row=row_idx, column=col_idx, value=cell_value)
 
-            # Add borders
-            thin_border = Border(left=Side(style='thin'),
-                                right=Side(style='thin'),
-                                top=Side(style='thin'),
-                                bottom=Side(style='thin'))
-
-            for row_idx, row_data in enumerate(df_sheet.itertuples(index=False, name=None), start=start_row):
-                for col_idx, header in enumerate(headers, start=1):
-                    if header in existing_headers:
-                        cell = sheet.cell(row=row_idx, column=existing_headers[header])
-                        cell.border = thin_border
-
         try:
             workbook.save(excel_file)
         except Exception as e:
@@ -236,7 +223,6 @@ class IgeaFiridaParser:
 
         if not done_split:
             self.write_to_excel_sheet(excel_file, split=True, done_split=True)
-            QgsMessageLog.logMessage(f"Splitting FIRIDA data into separate sheets", "StalpiAssist", level=Qgis.Info)
 
     def get_linie_value(self, feature):
         '''
@@ -255,7 +241,7 @@ class IgeaFiridaParser:
         ]
         
         if not matching_feature:
-            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Warning)
             return ""
         
         return matching_feature[0]['DENUM'] if matching_feature else ""

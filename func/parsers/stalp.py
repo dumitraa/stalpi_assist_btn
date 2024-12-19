@@ -99,7 +99,7 @@ class IgeaStalpParser:
             "Descriere detaliata": "desc_det",
             "Proprietar": "prop",
             "Detaliere Proprietar": "det_prop",
-            "Tip zona de amplasare": lambda stalp: stalp.tip_zona_amp if stalp.tip_zona_amp else "Rural",
+            "Tip zona de amplasare": lambda st: st.tip_zona_amp if st.tip_zona_amp else "Rural",
             "Judet": "jud",
             "Primarie": "prim",
             "Localitate": "loc",
@@ -109,7 +109,7 @@ class IgeaStalpParser:
             "Tip material": "tip_mat",
             "Descriere catalog MT, JT": "desc_ctg_mt_jt",
             "Numar circuite": "nr_cir",
-            "Defecte stalp": "", # ?
+            "Defecte stalp": lambda st: "", # ?
             "Tipul fundatiei": "tip_fund",
             "Observatii fundatie": "obs_fund",
             "Ancora": "anc",
@@ -250,7 +250,6 @@ class IgeaStalpParser:
         return getattr(parser, mapping, "") if mapping else ""
     
     def write_to_excel_sheet(self, excel_file):
-        QgsMessageLog.logMessage(f"Writing stalpi to excel file: {excel_file}", "StalpiAssist", level=Qgis.Info)
         data = []
         headers = list(self.mapping.keys())
         
@@ -262,9 +261,7 @@ class IgeaStalpParser:
                 value = self.resolve_mapping(stalp, mapping)
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)
-                QgsMessageLog.logMessage(f"Writing {value} to row with header {header}", "StalpiAssist", level=Qgis.Info)
             data.append(row)
-        QgsMessageLog.logMessage(f"Prepared data with {len(data)} rows", "StalpiAssist", level=Qgis.Info)
         
         workbook = load_workbook(excel_file)
         sheet = workbook["STÂLP"]
@@ -272,28 +269,10 @@ class IgeaStalpParser:
         start_row = sheet.max_row + 1
         header_row = sheet.max_row - 1
         existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
-        QgsMessageLog.logMessage(f"Existing headers found: {existing_headers}", "StalpiAssist", level=Qgis.Info)
         
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip() in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header.strip()], value=cell_value if cell_value is not None else "")
-        QgsMessageLog.logMessage(f"Data written to the sheet starting from row {start_row}", "StalpiAssist", level=Qgis.Info)
-        
-        # Add borders to the cells
-        thin_border = Border(
-            left=Side(style="thin"),
-            right=Side(style="thin"),
-            top=Side(style="thin"),
-            bottom=Side(style="thin"),
-        )
-        
-        for row_idx, row_data in enumerate(data, start=start_row):
-            for header in headers:
-                if header.strip() in existing_headers:
-                    cell = sheet.cell(row=row_idx, column=existing_headers[header.strip()])
-                    cell.border = thin_border
-        QgsMessageLog.logMessage(f"Borders added to cells for rows {start_row} to {start_row + len(data) - 1}", "StalpiAssist", level=Qgis.Info)
         
         workbook.save(excel_file)
-        QgsMessageLog.logMessage(f"Excel file {excel_file} saved successfully", "StalpiAssist", level=Qgis.Info)

@@ -73,7 +73,13 @@ class HelperBase:
         layer_names = ['STALP_JT', 'TRONSON_JT', 'BRANS_FIRI_GRPM_JT', 'FB pe C LES', 'FIRIDA_RETEA_JT', 'GRID_GEIOD', 'PTCZ_PTAB', 'TRONSON_XML_', 'TRONSON_ARANJARE', 'poze', 'FIRIDA_XML_', 'BRANSAMENT_XML_', 'GRUP_MASURA_XML_', 'STALP_XML_', 'DESCHIDERI_XML_', 'TRONSON_predare_xml', 'LINIE_MACHETA', 'STALPI_MACHETA', 'TRONSON_MACHETA', 'FIRIDA MACHETA', 'GRUP MASURA MACHETA', 'DESCHIDERI MACHETA', 'BRANSAMENTE MACHETA', 'LINIE_JT']
         
         # Get all layers in the current QGIS project (keep the layer objects)
-        qgis_layers = QgsProject.instance().mapLayers().values()
+        try:
+            qgis_layers = QgsProject.instance().mapLayers().values()
+            if not qgis_layers:
+                raise ValueError("No layers found in the project.")
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error getting layers: {e}", "StalpiAssist", level=Qgis.Critical)
+            return layers
 
         # Iterate through the actual layer objects
         for layer_name in layer_names:
@@ -192,7 +198,6 @@ class SHPProcessor:
                     case "tronson_predare_xml":
                         parser = IgeaTronsonParser(layer)
                     case _:
-                        QgsMessageLog.logMessage(f"Unknown layer type: {layer_name}. Skipping this layer.", "StalpiAssist", level=Qgis.Warning)
                         continue
                 
                 if parser is None:
