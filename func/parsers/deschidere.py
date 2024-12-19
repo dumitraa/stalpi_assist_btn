@@ -1,6 +1,5 @@
 from typing import List
 from openpyxl import load_workbook
-from openpyxl.styles import Border, Side
 from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class DeschidereJT:

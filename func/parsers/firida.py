@@ -57,10 +57,6 @@ class IgeaFiridaParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.firide: List[FiridaJT] = []
-        # self.helper = HelperBase()
-        # self.layers = self.helper.get_layers()
-        # self.processor = SHPProcessor(self.layers)
-        # self.linii = self.processor.map_linie_denum()
         
         self.mapping = {
             "Nr.crt": "nr_crt",

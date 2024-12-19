@@ -216,21 +216,6 @@ class SHPProcessor:
                 QgsMessageLog.logMessage(f"AttributeError processing layer '{layer_name}': {str(ae)}", "StalpiAssist", level=Qgis.Warning)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error processing layer '{layer_name}': {str(e)}", "StalpiAssist", level=Qgis.Critical)
-                
-    def map_linie_denum(self):
-        from .parsers.linie import IgeaLinieParser
-        
-        linie_denum = {}
-        
-        for layer_name, layer in self.layers.items():
-            if layer_name.lower() == "linie_jt":
-                parser = IgeaLinieParser(layer)
-                parser.parse()
-                
-                for linie in parser.linii:
-                    linie_denum[linie.id_bdi] = linie.denum
-                    
-        return linie_denum
         
         
         
