@@ -31,6 +31,7 @@ from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
 import processing # type: ignore
 from qgis.core import register_function # type: ignore
 from qgis.core import QgsGeometry, QgsWkbTypes # type: ignore
+from qgis.core import QgsProcessing # type: ignore
 
 
 
@@ -274,6 +275,34 @@ class StalpiAssist:
             helpText="Rounds WKT geometry coordinates to a given precision."
         )
         
+    def get_layer_path(self, layer_name):
+        """
+        Get the full data source path of a layer by its name.
+
+        Parameters:
+            layer_name (str): The name of the layer in the QGIS project.
+
+        Returns:
+            str: The full data source path of the layer, including `|layername=`.
+                Returns None if the layer is not found.
+        """
+        # Search for the layer by name in the current project
+        layers = QgsProject.instance().mapLayersByName(layer_name)
+        if not layers:
+            print(f"Layer '{layer_name}' not found in the project.")
+            return None
+        
+        # Get the first matching layer
+        layer = layers[0]
+        # Extract the data source path
+        data_source = layer.dataProvider().dataSourceUri()
+        
+        # Append layername (important for GPKG files with multiple layers)
+        if layer.storageType() == "GeoPackage" and "|layername=" not in data_source:
+            data_source += f"|layername={layer.name()}"
+        
+        return data_source
+    
     
     def set_base_dir(self):
         """Set base directory and update icons."""
@@ -292,52 +321,63 @@ class StalpiAssist:
         
     def run_tronson_model(self):
         """Run Tronson model."""
+        context = QgsProcessingContext()
         params = {
-            "linie_jt_introduse": "LINIE_JT",
-            "stalpi_desenati": "STALP_JT",
-            "tronson_desenat": "TRONSON_JT",
-            "TRONSON_XML_": os.path.join(self.base_dir, f"TRONSON_XML_.shp")
+            "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
+            "stalpi_desenati": self.get_layer_path("STALP_JT"),
+            "tronson_desenat": self.get_layer_path("TRONSON_JT"),
+            "tronson_xml_": os.path.join(self.base_dir, f"TRONSON_XML_.shp")
         }
-        processing.run("project:001 TRONSON_JT", params)
+        processing.run("model:001 TRONSON_JT", params, context=context)
+        self.helper.add_layer_to_project(params["tronson_xml_"])
+
+
         
         
     def run_brans_model(self):
         params = {
-            "brans_firi_desenate": "BRANS_FIRI_GRPM_JT",
-            "fb_pe_c_les": "FB pe C LES",
-            "linie_jt_introduse": "LINIE_JT",
+            "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
+            "fb_pe_c_les": self.get_layer_path("FB pe C LES"),
+            "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
             "BRANSAMENT_XML_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.shp"),
             "GRUP_MASURA_XML_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
             "FIRIDA_XML_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
         }   
-        processing.run("project:002 BRANS_FIRI_GR", params)
+        processing.run("model:002 BRANS_FIRI_GR", params)
+        self.helper.add_layer_to_project(params["BRANSAMENT_XML_"])
+        self.helper.add_layer_to_project(params["GRUP_MASURA_XML_"])
+        self.helper.add_layer_to_project(params["FIRIDA_XML_"])
         
         
     def run_stalp_model(self):
         params = {
-            "poze_geotag": "poze",
-            "stalp_in_lucru": "STALP_JT",
+            "poze_geotag": self.get_layer_path("poze"),
+            "stalp_in_lucru": self.get_layer_path("STALP_JT"),
             "STALP_XML_": os.path.join(self.base_dir, f"STALP_XML_.shp")
         }
-        processing.run("project:003 STALP JT generare", params)
+        processing.run("model:003 STALP JT generare", params)
+        self.helper.add_layer_to_project(params["STALP_XML_"])
     
     
     def run_deschideri_model(self):
         params = {
-            'stalpi_desenati': 'STALP_JT',
-            'tronson_jt': 'TRONSON_XML_',
+            'stalpi_desenati': self.get_layer_path('STALP_JT'),
+            'tronson_jt': self.get_layer_path('TRONSON_XML_'),
             'DESCHIDERI_XML_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
             'SCR_DWG': os.path.join(self.base_dir, f"SCR_DWG.shp"),
         }
-        processing.run("project:004 DESCHIDERI JT", params)
+        processing.run("model:004 DESCHIDERI JT", params)
+        self.helper.add_layer_to_project(params["DESCHIDERI_XML_"])
+        self.helper.add_layer_to_project(params["SCR_DWG"])
         
         
     def run_tronsoane_duble_model(self):
         params = {
-            'tronson_aranjat': 'TRONSON_ARANJAT',
+            'tronson_aranjat': self.get_layer_path('TRONSON_ARANJAT'),
             'TRONSON_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
         }
-        processing.run("project:003 TRONSOANE DUBLE ACTUALIZARE", params)
+        processing.run("model:003 TRONSOANE DUBLE ACTUALIZARE", params)
+        self.helper.add_layer_to_project(params["TRONSON_predare_xml"])
 
     def generate_xml(self):
         self.process_layers(self.layers)

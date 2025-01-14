@@ -29,7 +29,7 @@ class BransamentJT():
         self.sursa_coord = sursa_coord
         self.data_coord = data_coord
         self.obs = obs
-        self.geometry = geometry  # Add geometry as a proper attribute
+        self.geometry = geometry
 
     def get_geometry(self):
         return self.geometry
