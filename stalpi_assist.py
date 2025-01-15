@@ -26,12 +26,12 @@ from pathlib import Path
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication # type: ignore
 from qgis.PyQt.QtGui import QIcon # type: ignore
 from qgis.PyQt.QtWidgets import QAction # type: ignore
-from qgis.core import QgsMessageLog, QgsProcessingFeedback, QgsProcessingContext, Qgis, QgsProject # type: ignore
+from qgis.core import QgsProcessingFeedback, QgsProcessingContext, QgsProject # type: ignore
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
 import processing # type: ignore
 from qgis.core import register_function # type: ignore
 from qgis.core import QgsGeometry, QgsWkbTypes # type: ignore
-from qgis.core import QgsProcessing # type: ignore
+from qgis.PyQt.QtWidgets import QMessageBox # type: ignore 
 
 
 
@@ -59,6 +59,7 @@ class StalpiAssist:
         """
         # Save reference to the QGIS interface
         self.iface = iface
+        self.context = QgsProcessingContext()
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         self.helper = HelperBase()
@@ -316,25 +317,29 @@ class StalpiAssist:
                 action.setEnabled(True)
                 
             self.feedback = QgsProcessingFeedback()
-            self.context = QgsProcessingContext()
             self.context.setProject(QgsProject.instance())
-        
+
+
     def run_tronson_model(self):
-        """Run Tronson model."""
-        context = QgsProcessingContext()
+        """Run Tronson model with a progress window."""
         params = {
             "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
             "stalpi_desenati": self.get_layer_path("STALP_JT"),
             "tronson_desenat": self.get_layer_path("TRONSON_JT"),
             "tronson_xml_": os.path.join(self.base_dir, f"TRONSON_XML_.shp")
         }
-        processing.run("model:001 TRONSON_JT", params, context=context)
-        self.helper.add_layer_to_project(params["tronson_xml_"])
+
+        try:
+            processing.run("model:001 TRONSON_JT", params, context=self.context)
+            self.helper.add_layer_to_project(params["tronson_xml_"])
+            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "001 TRONSON_JT model finished successfully!")
+        
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
 
 
-        
-        
-    def run_brans_model(self):
+
+    def run_brans_model(self):        
         params = {
             "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
             "fb_pe_c_les": self.get_layer_path("FB pe C LES"),
@@ -343,12 +348,16 @@ class StalpiAssist:
             "grup_masura_xml_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
             "firida_xml_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
         }   
-        QgsMessageLog.logMessage("Running model:002 BRANS_FIRI_GR with params: " + str(params), 'StalpiAssist', Qgis.Info)
-        processing.run("model:002 BRANS_FIRI_GR", params)
-        self.helper.add_layer_to_project(params["bransament_xml_"])
-        self.helper.add_layer_to_project(params["grup_masura_xml_"])
-        self.helper.add_layer_to_project(params["firida_xml_"])
         
+        try: 
+            processing.run("model:002 BRANS_FIRI_GR", params, context=self.context)
+            self.helper.add_layer_to_project(params["bransament_xml_"])
+            self.helper.add_layer_to_project(params["grup_masura_xml_"])
+            self.helper.add_layer_to_project(params["firida_xml_"])
+            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "002 BRANS_FIRI_GR model finished successfully!")
+            
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
         
     def run_stalp_model(self):
         params = {
@@ -356,20 +365,32 @@ class StalpiAssist:
             "stalp_in_lucru": self.get_layer_path("STALP_JT"),
             "stalp_xml_": os.path.join(self.base_dir, f"STALP_XML_.shp")
         }
-        processing.run("model:003 STALP JT generare", params)
-        self.helper.add_layer_to_project(params["stalp_xml_"])
+        
+        try:
+            processing.run("model:003 STALP JT generare", params, context=self.context)
+            self.helper.add_layer_to_project(params["stalp_xml_"])
+            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "003 STALP JT model finished successfully!")
+            
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
     
     
-    def run_deschideri_model(self):
+    def run_deschideri_model(self):        
         params = {
             'stalpi_desenati': self.get_layer_path('STALP_JT'),
             'tronson_jt': self.get_layer_path('TRONSON_XML_'),
             'deschideri_xml_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
             'scr_dwg': os.path.join(self.base_dir, f"SCR_DWG.shp"),
         }
-        processing.run("model:004 DESCHIDERI JT", params)
-        self.helper.add_layer_to_project(params["deschideri_xml_"])
-        self.helper.add_layer_to_project(params["scr_dwg"])
+        
+        try:
+            processing.run("model:004 DESCHIDERI JT", params, context=self.context)
+            self.helper.add_layer_to_project(params["deschideri_xml_"])
+            self.helper.add_layer_to_project(params["scr_dwg"])
+            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "004 DESCHIDERI JT model finished successfully!")
+            
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
         
         
     def run_tronsoane_duble_model(self):
@@ -377,8 +398,14 @@ class StalpiAssist:
             'tronson_aranjat': self.get_layer_path('TRONSON_XML_'),
             'tronson_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
         }
-        processing.run("model:TRONSOANE DUBLE ACTUALIZARE", params)
-        self.helper.add_layer_to_project(params["tronson_predare_xml"])
+        
+        try:
+            processing.run("model:TRONSOANE DUBLE ACTUALIZARE", params, context=self.context)
+            self.helper.add_layer_to_project(params["tronson_predare_xml"])
+            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "TRONSOANE DUBLE ACTUALIZARE model finished successfully!")
+            
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
 
     def generate_xml(self):
         self.process_layers(self.layers)
