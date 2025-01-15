@@ -339,45 +339,46 @@ class StalpiAssist:
             "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
             "fb_pe_c_les": self.get_layer_path("FB pe C LES"),
             "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
-            "BRANSAMENT_XML_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.shp"),
-            "GRUP_MASURA_XML_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
-            "FIRIDA_XML_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
+            "bransament_xml_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.shp"),
+            "grup_masura_xml_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
+            "firida_xml_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
         }   
+        QgsMessageLog.logMessage("Running model:002 BRANS_FIRI_GR with params: " + str(params), 'StalpiAssist', Qgis.Info)
         processing.run("model:002 BRANS_FIRI_GR", params)
-        self.helper.add_layer_to_project(params["BRANSAMENT_XML_"])
-        self.helper.add_layer_to_project(params["GRUP_MASURA_XML_"])
-        self.helper.add_layer_to_project(params["FIRIDA_XML_"])
+        self.helper.add_layer_to_project(params["bransament_xml_"])
+        self.helper.add_layer_to_project(params["grup_masura_xml_"])
+        self.helper.add_layer_to_project(params["firida_xml_"])
         
         
     def run_stalp_model(self):
         params = {
             "poze_geotag": self.get_layer_path("poze"),
             "stalp_in_lucru": self.get_layer_path("STALP_JT"),
-            "STALP_XML_": os.path.join(self.base_dir, f"STALP_XML_.shp")
+            "stalp_xml_": os.path.join(self.base_dir, f"STALP_XML_.shp")
         }
         processing.run("model:003 STALP JT generare", params)
-        self.helper.add_layer_to_project(params["STALP_XML_"])
+        self.helper.add_layer_to_project(params["stalp_xml_"])
     
     
     def run_deschideri_model(self):
         params = {
             'stalpi_desenati': self.get_layer_path('STALP_JT'),
             'tronson_jt': self.get_layer_path('TRONSON_XML_'),
-            'DESCHIDERI_XML_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
-            'SCR_DWG': os.path.join(self.base_dir, f"SCR_DWG.shp"),
+            'deschideri_xml_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
+            'scr_dwg': os.path.join(self.base_dir, f"SCR_DWG.shp"),
         }
         processing.run("model:004 DESCHIDERI JT", params)
-        self.helper.add_layer_to_project(params["DESCHIDERI_XML_"])
-        self.helper.add_layer_to_project(params["SCR_DWG"])
+        self.helper.add_layer_to_project(params["deschideri_xml_"])
+        self.helper.add_layer_to_project(params["scr_dwg"])
         
         
     def run_tronsoane_duble_model(self):
         params = {
-            'tronson_aranjat': self.get_layer_path('TRONSON_ARANJAT'),
-            'TRONSON_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
+            'tronson_aranjat': self.get_layer_path('TRONSON_XML_'),
+            'tronson_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
         }
-        processing.run("model:003 TRONSOANE DUBLE ACTUALIZARE", params)
-        self.helper.add_layer_to_project(params["TRONSON_predare_xml"])
+        processing.run("model:TRONSOANE DUBLE ACTUALIZARE", params)
+        self.helper.add_layer_to_project(params["tronson_predare_xml"])
 
     def generate_xml(self):
         self.process_layers(self.layers)
