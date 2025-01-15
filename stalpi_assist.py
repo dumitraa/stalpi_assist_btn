@@ -174,8 +174,8 @@ class StalpiAssist:
         
         self.actions_to_enable = [
             self.add_action(
-                "001_Tronson_JT",
-                text=self.tr(u'001_Tronson_JT'),
+                "001_TRONSON_JT",
+                text=self.tr(u'001_TRONSON_JT'),
                 callback=self.run_tronson_model,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/1.png')),
