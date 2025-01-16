@@ -26,7 +26,7 @@ from pathlib import Path
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication # type: ignore
 from qgis.PyQt.QtGui import QIcon # type: ignore
 from qgis.PyQt.QtWidgets import QAction # type: ignore
-from qgis.core import QgsProcessingFeedback, QgsProcessingContext, QgsProject # type: ignore
+from qgis.core import QgsMessageLog, QgsProcessingFeedback, Qgis, QgsProcessingContext, QgsProject # type: ignore
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
 import processing # type: ignore
 from qgis.core import register_function # type: ignore
@@ -326,7 +326,7 @@ class StalpiAssist:
             "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
             "stalpi_desenati": self.get_layer_path("STALP_JT"),
             "tronson_desenat": self.get_layer_path("TRONSON_JT"),
-            "tronson_xml_": os.path.join(self.base_dir, f"TRONSON_XML_.shp")
+            "tronson_xml_": os.path.join(self.base_dir, f"TRONSON_XML_.gpkg")
         }
 
         try:
@@ -344,11 +344,11 @@ class StalpiAssist:
             "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
             "fb_pe_c_les": self.get_layer_path("FB pe C LES"),
             "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
-            "bransament_xml_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.shp"),
-            "grup_masura_xml_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.shp"),
-            "firida_xml_": os.path.join(self.base_dir, f"FIRIDA_XML_.shp")
+            "bransament_xml_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.gpkg"),
+            "grup_masura_xml_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.gpkg"),
+            "firida_xml_": os.path.join(self.base_dir, f"FIRIDA_XML_.gpkg")
         }   
-        
+        QgsMessageLog.logMessage(str(params), 'StalpiAssist', level=Qgis.Info)
         try: 
             processing.run("model:002 BRANS_FIRI_GR", params, context=self.context)
             self.helper.add_layer_to_project(params["bransament_xml_"])
@@ -363,7 +363,7 @@ class StalpiAssist:
         params = {
             "poze_geotag": self.get_layer_path("poze"),
             "stalp_in_lucru": self.get_layer_path("STALP_JT"),
-            "stalp_xml_": os.path.join(self.base_dir, f"STALP_XML_.shp")
+            "stalp_xml_": os.path.join(self.base_dir, f"STALP_XML_.gpkg")
         }
         
         try:
@@ -379,8 +379,8 @@ class StalpiAssist:
         params = {
             'stalpi_desenati': self.get_layer_path('STALP_JT'),
             'tronson_jt': self.get_layer_path('TRONSON_XML_'),
-            'deschideri_xml_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.shp"),
-            'scr_dwg': os.path.join(self.base_dir, f"SCR_DWG.shp"),
+            'deschideri_xml_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.gpkg"),
+            'scr_dwg': os.path.join(self.base_dir, f"SCR_DWG.gpkg"),
         }
         
         try:
@@ -396,7 +396,7 @@ class StalpiAssist:
     def run_tronsoane_duble_model(self):
         params = {
             'tronson_aranjat': self.get_layer_path('TRONSON_XML_'),
-            'tronson_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.shp"),
+            'tronson_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.gpkg"),
         }
         
         try:
