@@ -94,14 +94,13 @@ class IgeaGrupMasuraParser:
     def resolve_mapping(self, parser, mapping):
         if isinstance(mapping, tuple):
             parts = [
-                getattr(parser, element, "").strip() if hasattr(parser, element) else str(element).strip()
+                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
                 for element in mapping
             ]
             return " ".join(filter(None, parts)).strip()
         elif callable(mapping):
-            # If mapping is a function, execute it
             return mapping(parser)
-        return getattr(parser, mapping, "") if mapping else ""
+        return str(getattr(parser, mapping, "")).strip() if mapping else ""
 
     def write_to_excel_sheet(self, excel_file):
         data = []
