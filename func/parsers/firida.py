@@ -1,6 +1,5 @@
 from typing import List
 from openpyxl import load_workbook
-from openpyxl.styles import Border, Side
 import pandas as pd
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 

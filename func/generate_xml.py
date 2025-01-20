@@ -1,11 +1,11 @@
 import os
 import xml.etree.ElementTree as ET
 import gc
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QMessageBox
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QMessageBox # type: ignore
 from xml.dom import minidom
 from qgis.core import QgsProject, QgsMessageLog, Qgis  # type: ignore
-from PyQt5.QtCore import QThread, pyqtSignal
-from pathlib import Path
+from PyQt5.QtCore import QThread, pyqtSignal # type: ignore
+from pathlib import Path # type: ignore
 
 class GenerateXMLDialog(QDialog):
     
@@ -19,8 +19,6 @@ class GenerateXMLDialog(QDialog):
 
         self.progress_bar = QProgressBar(self)
         self.layout.addWidget(self.progress_bar)
-        
-        self.required_columns = None
         
         self.run_button = QPushButton("Generate XML Files", self)
         self.run_button.clicked.connect(self.__exec__)
@@ -62,13 +60,13 @@ class GenerateXMLDialog(QDialog):
 
                 for layer in layer_group:
                     layer_name = layer.name()
-                    self.required_columns = column_mapping.get(layer_name, [])
+                    required_columns = column_mapping.get(layer_name, [])
 
-                    if not self.required_columns:
+                    if not required_columns:
                         raise ValueError(f"No column mapping found for layer '{layer_name}'")
 
                     layer_columns = [field.name() for field in layer.fields()]
-                    missing_columns = [col for col in self.required_columns if col not in layer_columns]
+                    missing_columns = [col for col in required_columns if col not in layer_columns]
 
                     if missing_columns:
                         raise ValueError(f"Layer '{layer_name}' is missing required columns: {missing_columns}")
@@ -133,22 +131,6 @@ class GenerateXMLWorker(QThread):
             "TRONSON_predare_xml": "tronson_jt"
         }
 
-        self.column_mapping = {
-            "LINIE_JT": ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "PROP", "CLASS_ID_LOC", "ID_LOC", "CLASS_ID_INST_SUP", "ID_INST_SUP", "COD_AD_ENERG", "NIV_TEN", "TIP_LIN",
-                            "AN_PIF_INIT", "NR_IV"],
-            "STALP_XML_": ["CLASS_ID", "ID_BDI", "NR_CRT", "ID_LINIE_JT_1", "NR_CRT_LINIE_JT_1", "ID_LINIE_JT_2", "NR_CRT_LINIE_JT_2", "ID_LINIE_JT_3", "NR_CRT_LINIE_JT_3", 
-                            "ID_LINIE_JT_4", "NR_CRT_LINIE_JT_4", "ID_LINIE_JT_5", "NR_CRT_LINIE_JT_5", "ID_LINIE_JT_6", "NR_CRT_LINIE_JT_6", "ID_LINIE_JT_7", "NR_CRT_LINIE_JT_7", "DENUM", "NR_INS_STP", "DESC_DET", "PROP", "DET_PROP", "TIP_ZONA_AMP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "TIP_CIR", "TIP_MAT", "DESC_CTG_MT_JT", "NR_CIR", "UZURA_STP", "TIP_FUND", "OBS_FUND", "ANC", "OBS_ANC", "ADAOS", "OBS_ADAOS", "FIB_OPT", "NR_CIR_FO", "PROP_FO", "LTC", "NR_CIR_LTC", "PROP_LTC", "CATV", "NR_CIR_CATV", "PROP_CATV", "ECHIP_COM", "DISP_CUIB_PAS", "NR_CONS_C2S", "NR_CONS_C4S", "NR_CONS_C2T", "NR_CONS_C4T", "NR_CONS_C2BR", "NR_CONS_C4BR", "TIP_LEG_JT", "PRIZA_LEG_PAM", "CORP_IL", "CUTIE_SEL", "GEO", "LAT", "LONG", "ALT", "X_STEREO_70", "Y_STEREO_70", "Z_STEREO_70", "SURSA_COORD", "DATA_COORD", "OBS", "IMG_FILE_1", "IMG_FILE_2", "IMG_FILE_3", "IMG_FILE_4"],
-            "TRONSON_predare_xml": ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "PROP", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_INC_TR", "ID_INC_TR", "NR_CRT_INC_TR", 
-                                    "CLASS_ID_FIN_TR", "ID_FIN_TR", "NR_CRT_FIN_TR", "TIP_TR", "TIP_COND", "LUNG_TR", "GEO", "SURSA_COORD", "DATA_COORD", "UNIT_LOG_INT", "S_UNIT_LOG", "POST_LUC", "OBS"],
-            "GRUP_MASURA_XML_": ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_INST_SUP", "ID_INST_SUP", "NR_CRT_INST_SUP", "JUD", "PRIM", 
-                                    "LOC", "TIP_STR", "STR", "NR_SCARA", "ETAJ", "AP"],
-            "FIRIDA_XML_": ["CLASS_ID", "ID_BDI", "NR_CRT", "IDEN", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_INST_SUP", "ID_INST_SUP", "NR_CRT_INST_SUP", "JUD", "PRIM", "LOC", 
-                            "TIP_STR", "STR", "NR", "ETAJ", "ROL_FIRI", "TIP_FIRI_RET", "TIP_FIRI_BR", "AMPL", "MAT", "LIM_PROP", "DEF_FIRI", "NR_CIR", "AN_FUNC", "ALT", "GEO", "SURSA_COORD", "DATA_COORD", "LONG", "LAT", "X_STEREO_70", "Y_STEREO_70", "Z_STEREO_70"],
-            "DESCHIDERI_XML_": ["CLASS_ID", "ID_BDI", "NR_CRT", "DENUM", "ID_STP_INC", "NR_CRT_STP_INC", "ID_STP_TERM", "NR_CRT_STP_TERM", "ID_TR_JT1", "NR_CRT_TR_JT1", "ID_TR_JT2", 
-                                "NR_CRT_TR_JT2", "ID_TR_JT3", "NR_CRT_TR_JT3", "ID_TR_JT4", "NR_CRT_TR_JT4", "ID_TR_JT5", "NR_CRT_TR_JT5", "ID_TR_JT6", "NR_CRT_TR_JT6", "GEO", "LUNG", "SURSA_COORD", "DATA_COORD"],
-            "BRANSAMENT_XML_": ["ID_BDI", "NR_CRT", "DENUM", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_PLC_BR", "ID_PLC_BR", "NR_CRT_PLC_BR", "TIP_BR", "TIP_COND", "LUNG", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "NR_IMOB", "GEO", "SURSA_COORD", "DATA_COORD", "OBS"]
-        }
-
         progress = 0
 
         for layer_group in self.layers:
@@ -189,17 +171,21 @@ class GenerateXMLWorker(QThread):
             for feature in layer.getFeatures():
                 new_element = ET.Element(repeating_element_tag)
                 for field in layer.fields():
-                    field_name = field.name()
-                    if field_name not in self.column_mapping.get(layer.name(), []):
+                    field_value = feature[field.name()]
+                    if field.name() == "fid" or field.name().startswith("new_name"):
                         continue
-                    field_value = feature[field_name]
+                    if str(xml_template_path).endswith("stalp.xml") and field.name() == "NR_CIR":
+                        QgsMessageLog.logMessage(f"Field value found with nr_cir: {field_value}", "StalpiAssist", level=Qgis.Info)
+                        if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
+                            field_value = f"{field_value} circuite"
+                    child_element = ET.SubElement(new_element, field.name())
                     if field_value not in [None, "NULL", "nan"]:
-                        ET.SubElement(new_element, field_name).text = str(field_value)
+                        child_element.text = str(field_value)
                 parent.append(new_element)
 
             rough_string = ET.tostring(root, 'utf-8-sig')
             reparsed = minidom.parseString(rough_string)
-            with open(xml_output_path, "w", encoding="utf-8") as f:
+            with open(xml_output_path, "w", encoding="utf-8-sig") as f:
                 f.write(reparsed.toprettyxml(indent="  "))
 
         except Exception as e:
@@ -219,7 +205,7 @@ class GenerateXMLWorker(QThread):
 
             rough_string = ET.tostring(root, 'utf-8-sig')
             reparsed = minidom.parseString(rough_string)
-            with open(xml_output_path, "w", encoding="utf-8") as f:
+            with open(xml_output_path, "w", encoding="utf-8-sig") as f:
                 f.write(reparsed.toprettyxml(indent="  "))
 
         except Exception as e:

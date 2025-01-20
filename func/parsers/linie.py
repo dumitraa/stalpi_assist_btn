@@ -1,7 +1,5 @@
 from typing import List
 from openpyxl import load_workbook
-from openpyxl.styles import Border, Side
-from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class LinieJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, class_id_inst_sup, id_inst_sup, cod_ad_energ, niv_ten, tip_lin, an_pif_init, nr_iv):

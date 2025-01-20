@@ -1,7 +1,5 @@
 from typing import List
 from openpyxl import load_workbook
-from openpyxl.styles import Border, Side
-from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class GrupMasuraJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, class_id_loc, id_loc, nr_crt_loc, class_id_inst_sup, id_inst_sup, nr_crt_inst_sup, jud, prim, loc, tip_str, str, nr_scara, etaj, ap):

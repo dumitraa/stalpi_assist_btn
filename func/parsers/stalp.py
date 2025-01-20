@@ -1,7 +1,5 @@
 from typing import List
 from openpyxl import load_workbook
-from openpyxl.styles import Border, Side
-from qgis.core import QgsMessageLog, Qgis # type: ignore
 
 class StalpJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, id_linie_jt_1, nr_crt_linie_jt_1, id_linie_jt_2, nr_crt_linie_jt_2, id_linie_jt_3, nr_crt_linie_jt_3, id_linie_jt_4, nr_crt_linie_jt_4, id_linie_jt_5, nr_crt_linie_jt_5, id_linie_jt_6, nr_crt_linie_jt_6, id_linie_jt_7, nr_crt_linie_jt_7, denum, nr_ins_stp, desc_det, prop, det_prop, tip_zona_amp, jud, prim, loc, tip_str, str, tip_cir, tip_mat, desc_ctg_mt_jt, nr_cir, uzura_stp, tip_fund, obs_fund, anc, obs_anc, adaos, obs_adaos, fib_opt, nr_cir_fo, prop_fo, ltc, nr_cir_ltc, prop_ltc, catv, nr_cir_catv, prop_catv, echip_com, disp_cuib_pas, nr_cons_c2s, nr_cons_c4s, nr_cons_c2t, nr_cons_c4t, nr_cons_c2br, nr_cons_c4br, tip_leg_jt, priza_leg_pam, corp_il, cutie_sel, geo, lat, long, alt, x_stereo_70, y_stereo_70, z_stereo_70, sursa_coord, data_coord, obs, img_file_1, img_file_2, img_file_3, img_file_4):
