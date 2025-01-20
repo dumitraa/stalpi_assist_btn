@@ -106,7 +106,7 @@ class IgeaStalpParser:
             "Tip circuit": "tip_cir",
             "Tip material": "tip_mat",
             "Descriere catalog MT, JT": "desc_ctg_mt_jt",
-            "Numar circuite": "nr_cir",
+            "Numar circuite": lambda st: (f"{st.nr_cir} circuite" if int(st.nr_cir) > 2 else int(st.nr_cir)) if st.nr_cir and str(st.nr_cir).isdigit() else st.nr_cir,
             "Defecte stalp": lambda st: "", # ?
             "Tipul fundatiei": "tip_fund",
             "Observatii fundatie": "obs_fund",
