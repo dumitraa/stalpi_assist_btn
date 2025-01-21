@@ -348,7 +348,6 @@ class StalpiAssist:
             "grup_masura_xml_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.gpkg"),
             "firida_xml_": os.path.join(self.base_dir, f"FIRIDA_XML_.gpkg")
         }   
-        QgsMessageLog.logMessage(str(params), 'StalpiAssist', level=Qgis.Info)
         try: 
             processing.run("model:002 BRANS_FIRI_GR", params, context=self.context)
             self.helper.add_layer_to_project(params["bransament_xml_"])

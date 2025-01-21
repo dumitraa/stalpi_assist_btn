@@ -175,7 +175,6 @@ class GenerateXMLWorker(QThread):
                     if field.name() == "fid" or field.name().startswith("new_name"):
                         continue
                     if str(xml_template_path).endswith("stalp.xml") and field.name() == "NR_CIR":
-                        QgsMessageLog.logMessage(f"Field value found with nr_cir: {field_value}", "StalpiAssist", level=Qgis.Info)
                         if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
                             field_value = f"{field_value} circuite"
                     child_element = ET.SubElement(new_element, field.name())

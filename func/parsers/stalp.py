@@ -130,7 +130,7 @@ class IgeaStalpParser:
             "Priza de legare la pamant": "priza_leg_pam",
             "Corp iluminat": "corp_il",
             "Cutie selectivitate/cutie sectionare": "cutie_sel",
-            "Latitudine (grade zecimale)": lambda stalp: f"{stalp.lat:.8f}" if stalp.lat else "",
+            "Latitudine (grade zecimale)": lambda stalp: f"{float(stalp.lat):.8f}" if stalp.lat else "",
             "Longitudine (grade zecimale)": "long",
             "Altitudine (m)": "alt",
             "x - STEREO 70 (m)": "x_stereo_70",
