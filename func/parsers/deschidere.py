@@ -48,7 +48,6 @@ class IgeaDeschidereParser:
         self.helper = HelperBase()
         self.final_deschidere_layer = self.create_scratch_layer()
         
-        
         self.layers = self.get_layers()
         if not self.layers:
             QgsMessageLog.logMessage("No layers found matching the required names.", "StalpiAssist", level=Qgis.Critical)
@@ -151,14 +150,15 @@ class IgeaDeschidereParser:
         return str(getattr(parser, mapping, "")).strip() if mapping else ""
 
 
-    def write_to_excel_sheet(self, excel_file):
-        QgsProject.instance().removeMapLayer(self.final_deschidere_layer)        
-        
+    def write_to_excel_sheet(self, excel_file):        
         data = []
         headers = list(self.mapping.keys())
         
-        # Prepare data for writing
-        for deschidere in self.deschideri:
+        sorted_ds = sorted(
+            self.deschideri,
+            key=lambda ds: ds.nr_crt if ds.nr_crt not in [None, "NULL", "nan"] else float("inf")
+        )
+        for deschidere in sorted_ds:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
@@ -188,36 +188,32 @@ class IgeaDeschidereParser:
         """
         Creates a scratch layer by performing all the necessary joins and spatial operations.
         """
-        try:
-            QgsMessageLog.logMessage("Starting create_scratch_layer", "StalpiAssist", level=Qgis.Info)
-            
+        try:            
             # Load necessary layers
             deschideri_layer = QgsProject.instance().mapLayersByName("DESCHIDERI_XML_")[0]
             linie_jt_layer = QgsProject.instance().mapLayersByName("LINIE_JT")[0]
             tronson_layer = QgsProject.instance().mapLayersByName("TRONSON_predare_xml")[0]
-            
-            QgsMessageLog.logMessage("Layers loaded successfully", "StalpiAssist", level=Qgis.Info)
-            
-            # First join (DESCHIDERI_XML with LINIE_JT)
-            processing.run("native:joinattributestable", {
+                        
+            # First join (TRONSON_predare_xml with LINIE_JT) with prefix
+            joined_layer = processing.run("native:joinattributestable", {
                 'INPUT': tronson_layer,
                 'FIELD': 'ID_LOC',
                 'INPUT_2': linie_jt_layer,
                 'FIELD_2': 'ID_BDI',
                 'FIELDS_TO_COPY': ['ID_BDI', 'DENUM'],
-                'OUTPUT': 'memory:'
-            })
-            
-            QgsMessageLog.logMessage("First join completed", "StalpiAssist", level=Qgis.Info)
-            
-            # Explode TRONSON_predare_xml
-            exploded_layer = processing.run("native:explodelines", {
-                'INPUT': tronson_layer,
+                'PREFIX': 'LINIE_JT_',
                 'OUTPUT': 'memory:'
             })['OUTPUT']
-            QgsMessageLog.logMessage("Exploded TRONSON_predare_xml layer", "StalpiAssist", level=Qgis.Info)
-            
-            # Spatial join between DESCHIDERI_XML and exploded_layer
+            joined_layer.setName("TRONSON_predare_xml_joined")
+                        
+            # Explode TRONSON_predare_xml
+            exploded_layer = processing.run("native:explodelines", {
+                'INPUT': joined_layer,
+                'OUTPUT': 'memory:'
+            })['OUTPUT']
+            exploded_layer.setName("TRONSON_predare_xml_exploded")
+                        
+            # Spatial join between DESCHIDERI_XML_ and exploded_layer
             final_layer = processing.run("native:joinattributesbylocation", {
                 'INPUT': deschideri_layer,
                 'JOIN': exploded_layer,
@@ -226,8 +222,8 @@ class IgeaDeschidereParser:
                 'METHOD': 1,  # One-to-one
                 'OUTPUT': 'memory:'
             })['OUTPUT']
-            
-            QgsMessageLog.logMessage("Scratch layer created successfully", "StalpiAssist", level=Qgis.Success)
+            final_layer.setName("DESCHIDERI_XML_final")
+                        
             return final_layer
         except IndexError as e:
             QgsMessageLog.logMessage(f"IndexError: {e}. Check if all required layers are loaded correctly.", "StalpiAssist", level=Qgis.Critical)
@@ -237,24 +233,30 @@ class IgeaDeschidereParser:
 
     def get_location_data(self, fid):
         """
-        Returns a dictionary with ID_Locatia and Locatia for a given feature ID.
+        Returns a dictionary with ID_Locatia (LINIE_JT_ID_BDI) and Locatia (LINIE_JT_DENUM) for a given feature ID.
         """
         try:
-            QgsMessageLog.logMessage(f"Retrieving location data for feature ID {fid}", "StalpiAssist", level=Qgis.Info)
-            
-            if self.final_deschidere_layer is None:
-                QgsMessageLog.logMessage("final_deschidere_layer is None", "StalpiAssist", level=Qgis.Warning)
+            if not self.final_deschidere_layer:
+                QgsMessageLog.logMessage("Error: final_deschidere_layer is None", "StalpiAssist", level=Qgis.Critical)
                 return None
-            
+
+            # Fetch feature
             feature = next(self.final_deschidere_layer.getFeatures(QgsFeatureRequest(fid)), None)
+
             if feature:
-                QgsMessageLog.logMessage(f"Feature found: {feature.id()}", "StalpiAssist", level=Qgis.Info)
-                return {
-                    "id_loc": feature["LINIE_JT_ID_BDI"],
-                    "locatia": feature["LINIE_JT_DENUM"]
-                }
+                # Debug available fields
+                available_fields = [field.name() for field in self.final_deschidere_layer.fields()]
+                # Ensure required fields exist
+                id_locatia = feature["LINIE_JT_ID_BDI"] if "LINIE_JT_ID_BDI" in available_fields else None
+                locatia = feature["LINIE_JT_DENUM"] if "LINIE_JT_DENUM" in available_fields else None
+
+                return {"id_loc": id_locatia, "locatia": locatia}
+            else:
+                QgsMessageLog.logMessage("Feature not found", "StalpiAssist", level=Qgis.Warning)
+                return None
+
         except Exception as e:
-            QgsMessageLog.logMessage(f"An error occurred while retrieving feature data: {e}", "StalpiAssist", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error retrieving feature data: {e}", "StalpiAssist", level=Qgis.Critical)
         return None
 
 
@@ -263,7 +265,7 @@ class IgeaDeschidereParser:
         Get layers by name from the QGIS project and add them to self.layers
         '''
         layers = {}
-        layer_names = ["TRONSON_predare_xml", "LINIE_JT"]
+        layer_names = ["TRONSON_predare_xml", "LINIE_JT", 'DESCHIDERI_XML_', 'DESCHIDERI_XML_final', 'TRONSON_predare_xml_exploded', 'TRONSON_predare_xml_joined']
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()

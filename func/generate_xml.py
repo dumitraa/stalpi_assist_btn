@@ -168,7 +168,13 @@ class GenerateXMLWorker(QThread):
             for child in root.findall(repeating_element_tag):
                 parent.remove(child)
 
-            for feature in layer.getFeatures():
+        # Sort features by NR_CRT
+            sorted_features = sorted(
+                layer.getFeatures(), 
+                key=lambda f: f["NR_CRT"] if f["NR_CRT"] not in [None, "NULL", "nan"] else float("inf")
+            )
+            
+            for feature in sorted_features:
                 new_element = ET.Element(repeating_element_tag)
                 for field in layer.fields():
                     field_value = feature[field.name()]

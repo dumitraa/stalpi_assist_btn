@@ -274,8 +274,11 @@ class IgeaStalpParser:
         data = []
         headers = list(self.mapping.keys())
         
-        # Prepare data for writing
-        for stalp in self.stalpi:
+        sorted_st = sorted(
+            self.stalpi,
+            key=lambda st: st.nr_crt if st.nr_crt not in [None, "NULL", "nan"] else float("inf")
+        )
+        for stalp in sorted_st:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)

@@ -42,7 +42,7 @@ class IgeaBransamentParser:
         self.vector_layer = vector_layer
         self.bransamente: List[BransamentJT] = []
         self.mapping = {
-            "Nr. Crt": "nr_crt",
+            "Nr.crt": "nr_crt",
             "Denumire": "denum",
             "Descrierea BDI": ("BR ", "denum"),
             "ID_Locatia": "id_loc",
@@ -119,8 +119,11 @@ class IgeaBransamentParser:
     def write_to_excel_sheet(self, excel_file):
         data = []
         headers = list(self.mapping.keys())
-
-        for bransament in self.bransamente:
+        sorted_br = sorted(
+            self.bransamente,
+            key=lambda br: br.nr_crt if br.nr_crt not in [None, "NULL", "nan"] else float("inf")
+        )
+        for bransament in sorted_br:
             row = []
             for header in headers:
                 mapping = self.mapping[header]

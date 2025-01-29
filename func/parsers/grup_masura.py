@@ -105,11 +105,15 @@ class IgeaGrupMasuraParser:
         headers = list(self.mapping.keys())
         
         # Prepare data for writing
-        for grup in self.grupuri:
+        sorted_gr = sorted(
+            self.grupuri,
+            key=lambda gr: gr.nr_crt if gr.nr_crt not in [None, "NULL", "nan"] else float("inf")
+        )
+        for grupa in sorted_gr:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                value = self.resolve_mapping(grup, mapping)
+                value = self.resolve_mapping(grupa, mapping)
                 # Replace None with an empty string
                 value = "" if value in ["NULL", None, "nan"] else value
                 row.append(value)

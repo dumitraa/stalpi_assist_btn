@@ -131,7 +131,11 @@ class IgeaTronsonParser:
         data = []
         headers = list(self.mapping.keys())
         
-        for tronson in self.tronsoane:
+        sorted_tr = sorted(
+            self.tronsoane,
+            key=lambda tr: tr.nr_crt if tr.nr_crt not in [None, "NULL", "nan"] else float("inf")
+        )
+        for tronson in sorted_tr:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)

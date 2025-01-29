@@ -183,43 +183,43 @@ class SHPProcessor:
         :return: None
         """        
         for layer_name, layer in self.layers.items():
-            try:
-                parser = None  # Initialize parser
-                
-                match layer_name.lower():
-                    case "linie_jt": 
-                        parser = IgeaLinieParser(layer)
-                    case "stalp_xml_":
-                        parser = IgeaStalpParser(layer)
-                    case "bransament_xml_":
-                        parser = IgeaBransamentParser(layer)
-                    case "grup_masura_xml_":
-                        parser = IgeaGrupMasuraParser(layer)
-                    case "deschideri_xml_":
-                        parser = IgeaDeschidereParser(layer)
-                    case "firida_xml_":
-                        parser = IgeaFiridaParser(layer)
-                    case "tronson_predare_xml":
-                        parser = IgeaTronsonParser(layer)
-                    case _:
-                        continue
-                
-                if parser is None:
-                    raise ValueError(f"No parser found for layer: {layer_name}")
-                
-                # Debugging: Ensure the layer data is loaded before parsing
-                if not layer.isValid():
-                    raise ValueError(f"Layer '{layer_name}' is invalid or could not be loaded.")
-                
-                parser.parse()  # Parse the layer
-                self.parsers.append(parser)  # Add the parser to the list
+            # try:
+            parser = None  # Initialize parser
             
-            except ValueError as ve:
-                QgsMessageLog.logMessage(f"ValueError processing layer '{layer_name}': {str(ve)}", "StalpiAssist", level=Qgis.Warning)
-            except AttributeError as ae:
-                QgsMessageLog.logMessage(f"AttributeError processing layer '{layer_name}': {str(ae)}", "StalpiAssist", level=Qgis.Warning)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error processing layer '{layer_name}': {str(e)}", "StalpiAssist", level=Qgis.Critical)
+            match layer_name.lower():
+                case "linie_jt": 
+                    parser = IgeaLinieParser(layer)
+                case "stalp_xml_":
+                    parser = IgeaStalpParser(layer)
+                case "bransament_xml_":
+                    parser = IgeaBransamentParser(layer)
+                case "grup_masura_xml_":
+                    parser = IgeaGrupMasuraParser(layer)
+                case "deschideri_xml_":
+                    parser = IgeaDeschidereParser(layer)
+                case "firida_xml_":
+                    parser = IgeaFiridaParser(layer)
+                case "tronson_predare_xml":
+                    parser = IgeaTronsonParser(layer)
+                case _:
+                    continue
+            
+            if parser is None:
+                raise ValueError(f"No parser found for layer: {layer_name}")
+            
+            # Debugging: Ensure the layer data is loaded before parsing
+            if not layer.isValid():
+                raise ValueError(f"Layer '{layer_name}' is invalid or could not be loaded.")
+            
+            parser.parse()  # Parse the layer
+            self.parsers.append(parser)  # Add the parser to the list
+            
+            # except ValueError as ve:
+            #     QgsMessageLog.logMessage(f"ValueError processing layer '{layer_name}': {str(ve)}", "StalpiAssist", level=Qgis.Warning)
+            # except AttributeError as ae:
+            #     QgsMessageLog.logMessage(f"AttributeError processing layer '{layer_name}': {str(ae)}", "StalpiAssist", level=Qgis.Warning)
+            # except Exception as e:
+            #     QgsMessageLog.logMessage(f"Error processing layer '{layer_name}': {str(e)}", "StalpiAssist", level=Qgis.Critical)
         
         
         

@@ -163,7 +163,11 @@ class IgeaFiridaParser:
         headers = list(self.mapping.keys())
 
         # Collect data rows
-        for firida in self.firide:
+        sorted_fr = sorted(
+            self.firide,
+            key=lambda fr: fr.nr_crt if fr.nr_crt not in [None, "NULL", "nan"] else float("inf")
+        )
+        for firida in sorted_fr:
             row = []
             for header in headers:
                 mapping = self.mapping[header]
