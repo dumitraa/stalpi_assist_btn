@@ -16,7 +16,7 @@ import unittest
 
 from qgis.PyQt.QtGui import QDialogButtonBox, QDialog
 
-from enel_assist_dialog import StalpiAssistDialog
+from stalpi_assist_dialog import StalpiAssistDialog
 
 from utilities import get_qgis_app
 QGIS_APP = get_qgis_app()

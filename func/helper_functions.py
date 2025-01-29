@@ -89,24 +89,28 @@ class HelperBase:
         return layers
 
 
-    def add_layer_to_project(self, layer_path):
+    def add_layer_to_project(self, layer):
         try:
-            # Get the name of the layer without the file extension and the full path
-            layer_name = os.path.splitext(os.path.basename(layer_path))[0]
-            
-            # Load the merged layer from the output path
-            merged_layer = QgsVectorLayer(layer_path, layer_name, 'ogr')
-            
-            # Check if the layer is valid
-            if not merged_layer.isValid():
-                QgsMessageLog.logMessage(f"Invalid layer: {layer_path}", "StalpiAssist", level=Qgis.Critical)
-                return
-            
-            # Add the layer to the project with the proper name
-            QgsProject.instance().addMapLayer(merged_layer)
-            
+            if isinstance(layer, str):  # If layer is a file path
+                layer_name = os.path.splitext(os.path.basename(layer))[0]
+                merged_layer = QgsVectorLayer(layer, layer_name, 'ogr')
+                
+                if not merged_layer.isValid():
+                    QgsMessageLog.logMessage(f"Invalid layer: {layer}", "StalpiAssist", level=Qgis.Critical)
+                    return
+                
+                QgsProject.instance().addMapLayer(merged_layer)
+            elif isinstance(layer, QgsVectorLayer):  # If layer is already a QgsVectorLayer object
+                if not layer.isValid():
+                    QgsMessageLog.logMessage("Invalid QgsVectorLayer object.", "StalpiAssist", level=Qgis.Critical)
+                    return
+                
+                QgsProject.instance().addMapLayer(layer)
+            else:
+                raise TypeError("Invalid input type. Expected str or QgsVectorLayer.")
         except Exception as e:
             QgsMessageLog.logMessage(f"Error adding layer to project: {e}", "StalpiAssist", level=Qgis.Critical)
+
             
             
     def run_algorithm(self, algorithm, params, context, feedback, output_key):

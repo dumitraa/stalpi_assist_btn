@@ -1,7 +1,7 @@
 #/***************************************************************************
 # StalpiAssist
 #
-# Helps in assisting for Enel
+# Helps in assisting for Stalpi
 #							 -------------------
 #		begin				: 2024-10-08
 #		git sha				: $Format:%H$
@@ -38,15 +38,15 @@ LOCALES =
 # translation
 SOURCES = \
 	__init__.py \
-	enel_assist.py enel_assist_dialog.py
+	stalpi_assist.py stalpi_assist_dialog.py
 
-PLUGINNAME = enel_assist
+PLUGINNAME = stalpi_assist
 
 PY_FILES = \
 	__init__.py \
-	enel_assist.py enel_assist_dialog.py
+	stalpi_assist.py stalpi_assist_dialog.py
 
-UI_FILES = enel_assist_dialog_base.ui
+UI_FILES = stalpi_assist_dialog_base.ui
 
 EXTRAS = metadata.txt icon.png
 

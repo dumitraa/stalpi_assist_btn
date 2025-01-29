@@ -5,7 +5,7 @@
 [general]
 name=StalpiAssist
 qgisMinimumVersion=3.0
-description=Helps in assisting for Enel
+description=Helps in assisting for Stalpi
 version=0.1
 author=Ionela
 email=ioneladumitra@yahoo.ro

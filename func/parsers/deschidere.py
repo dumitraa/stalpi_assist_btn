@@ -1,9 +1,13 @@
 from typing import List
 from openpyxl import load_workbook
-from qgis.core import QgsMessageLog, Qgis # type: ignore
+from qgis.core import QgsMessageLog, Qgis, QgsProject, QgsFeatureRequest # type: ignore
+from ..helper_functions import HelperBase
+import processing # type: ignore
+
+
 
 class DeschidereJT:
-    def __init__(self, id, class_id, id_bdi, nr_crt, denum, ip_stp_inc, nr_crt_stp_inc, id_stp_term, nr_crt_stp_term, id_tr_jt1, nr_crt_tr_jt1, id_tr_jt2, nr_crt_tr_jt2, id_tr_jt3, nr_crt_tr_jt3, id_tr_jt4, nr_crt_tr_jt4, id_tr_jt5, nr_crt_tr_jt5, id_tr_jt6, nr_crt_tr_jt6, geo, lung, sursa_coord, data_coord):
+    def __init__(self, id, class_id, id_bdi, nr_crt, denum, ip_stp_inc, nr_crt_stp_inc, id_stp_term, nr_crt_stp_term, id_tr_jt1, nr_crt_tr_jt1, id_tr_jt2, nr_crt_tr_jt2, id_tr_jt3, nr_crt_tr_jt3, id_tr_jt4, nr_crt_tr_jt4, id_tr_jt5, nr_crt_tr_jt5, id_tr_jt6, nr_crt_tr_jt6, geo, lung, sursa_coord, data_coord, id_loc, locatia):
         self.id = id
         self.class_id = class_id
         self.id_bdi = id_bdi
@@ -29,6 +33,8 @@ class DeschidereJT:
         self.lung = lung
         self.sursa_coord = sursa_coord
         self.data_coord = data_coord
+        self.id_loc = id_loc
+        self.locatia = locatia
         
 
     def __repr__(self):
@@ -39,13 +45,21 @@ class IgeaDeschidereParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.deschideri: List[DeschidereJT] = []
+        self.helper = HelperBase()
+        self.final_deschidere_layer = self.create_scratch_layer()
+        
+        
+        self.layers = self.get_layers()
+        if not self.layers:
+            QgsMessageLog.logMessage("No layers found matching the required names.", "StalpiAssist", level=Qgis.Critical)
+            return
 
         self.mapping = {
             "Nr.crt": "nr_crt",
             "Denumire": "denum",
             "Descrierea BDI": ("DESC", "denum"),
-            "ID_Locatia": "id_loc",
-            "Locatia": "loc",
+            "ID_Locatia": lambda ds: ds.id_loc,
+            "Locatia": lambda ds: ds.locatia,
             "Nr.crt_Inceput": "nr_crt_stp_inc",
             "Stâlpul de inceput": lambda ds: ds.denum.split('-')[0].strip() if ds.denum else "",
             "Nr.crt_sfarsit": "nr_crt_stp_term",
@@ -75,7 +89,18 @@ class IgeaDeschidereParser:
 
         features = list(self.vector_layer.getFeatures())
         for feature in features:
-            attributes = {key: feature[key] for key in feature.fields().names()}
+            try:
+                loc_data = self.get_location_data(feature.id()) if self.final_deschidere_layer else {"id_loc": "", "locatia": ""}
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error getting location data: {e}", "StalpiAssist", level=Qgis.Critical)
+                loc_data = {"id_loc": "", "locatia": ""}
+            
+            # Cache loc_data for mapping
+            feature_loc_data = {
+                "id_loc": loc_data["id_loc"] if loc_data["id_loc"] else "",
+                "locatia": loc_data["locatia"] if loc_data["locatia"] else ""
+            }
+            
             deschidere_data = DeschidereJT(
                 id=feature.id(),
                 class_id=feature["CLASS_ID"],
@@ -101,7 +126,9 @@ class IgeaDeschidereParser:
                 geo=feature["GEO"],
                 lung=feature["LUNG"],
                 sursa_coord=feature["SURSA_COORD"],
-                data_coord=feature["DATA_COORD"]
+                data_coord=feature["DATA_COORD"],
+                id_loc = feature_loc_data["id_loc"],
+                locatia = feature_loc_data["locatia"]
             )
 
             self.deschideri.append(deschidere_data)
@@ -125,6 +152,8 @@ class IgeaDeschidereParser:
 
 
     def write_to_excel_sheet(self, excel_file):
+        QgsProject.instance().removeMapLayer(self.final_deschidere_layer)        
+        
         data = []
         headers = list(self.mapping.keys())
         
@@ -153,3 +182,95 @@ class IgeaDeschidereParser:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
         
         workbook.save(excel_file)
+
+
+    def create_scratch_layer(self):
+        """
+        Creates a scratch layer by performing all the necessary joins and spatial operations.
+        """
+        try:
+            QgsMessageLog.logMessage("Starting create_scratch_layer", "StalpiAssist", level=Qgis.Info)
+            
+            # Load necessary layers
+            deschideri_layer = QgsProject.instance().mapLayersByName("DESCHIDERI_XML_")[0]
+            linie_jt_layer = QgsProject.instance().mapLayersByName("LINIE_JT")[0]
+            tronson_layer = QgsProject.instance().mapLayersByName("TRONSON_predare_xml")[0]
+            
+            QgsMessageLog.logMessage("Layers loaded successfully", "StalpiAssist", level=Qgis.Info)
+            
+            # First join (DESCHIDERI_XML with LINIE_JT)
+            processing.run("native:joinattributestable", {
+                'INPUT': tronson_layer,
+                'FIELD': 'ID_LOC',
+                'INPUT_2': linie_jt_layer,
+                'FIELD_2': 'ID_BDI',
+                'FIELDS_TO_COPY': ['ID_BDI', 'DENUM'],
+                'OUTPUT': 'memory:'
+            })
+            
+            QgsMessageLog.logMessage("First join completed", "StalpiAssist", level=Qgis.Info)
+            
+            # Explode TRONSON_predare_xml
+            exploded_layer = processing.run("native:explodelines", {
+                'INPUT': tronson_layer,
+                'OUTPUT': 'memory:'
+            })['OUTPUT']
+            QgsMessageLog.logMessage("Exploded TRONSON_predare_xml layer", "StalpiAssist", level=Qgis.Info)
+            
+            # Spatial join between DESCHIDERI_XML and exploded_layer
+            final_layer = processing.run("native:joinattributesbylocation", {
+                'INPUT': deschideri_layer,
+                'JOIN': exploded_layer,
+                'PREDICATE': [0],  # Intersects
+                'JOIN_FIELDS': ['LINIE_JT_ID_BDI', 'LINIE_JT_DENUM'],
+                'METHOD': 1,  # One-to-one
+                'OUTPUT': 'memory:'
+            })['OUTPUT']
+            
+            QgsMessageLog.logMessage("Scratch layer created successfully", "StalpiAssist", level=Qgis.Success)
+            return final_layer
+        except IndexError as e:
+            QgsMessageLog.logMessage(f"IndexError: {e}. Check if all required layers are loaded correctly.", "StalpiAssist", level=Qgis.Critical)
+        except Exception as e:
+            QgsMessageLog.logMessage(f"An error occurred while creating scratch layer: {e}", "StalpiAssist", level=Qgis.Critical)
+        return None
+
+    def get_location_data(self, fid):
+        """
+        Returns a dictionary with ID_Locatia and Locatia for a given feature ID.
+        """
+        try:
+            QgsMessageLog.logMessage(f"Retrieving location data for feature ID {fid}", "StalpiAssist", level=Qgis.Info)
+            
+            if self.final_deschidere_layer is None:
+                QgsMessageLog.logMessage("final_deschidere_layer is None", "StalpiAssist", level=Qgis.Warning)
+                return None
+            
+            feature = next(self.final_deschidere_layer.getFeatures(QgsFeatureRequest(fid)), None)
+            if feature:
+                QgsMessageLog.logMessage(f"Feature found: {feature.id()}", "StalpiAssist", level=Qgis.Info)
+                return {
+                    "id_loc": feature["LINIE_JT_ID_BDI"],
+                    "locatia": feature["LINIE_JT_DENUM"]
+                }
+        except Exception as e:
+            QgsMessageLog.logMessage(f"An error occurred while retrieving feature data: {e}", "StalpiAssist", level=Qgis.Critical)
+        return None
+
+
+    def get_layers(self):
+        '''
+        Get layers by name from the QGIS project and add them to self.layers
+        '''
+        layers = {}
+        layer_names = ["TRONSON_predare_xml", "LINIE_JT"]
+
+        # Get all layers in the current QGIS project (keep the layer objects)
+        qgis_layers = QgsProject.instance().mapLayers().values()
+
+        # Iterate through the actual layer objects
+        for layer_name in layer_names:
+            layer = next((l for l in qgis_layers if l.name() == layer_name), None)
+            layers[layer_name] = layer  # Add the layer if found, else None
+
+        return layers

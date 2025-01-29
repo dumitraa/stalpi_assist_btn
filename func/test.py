@@ -1,122 +1,6 @@
-"""
-Model exported as python.
-Name : 005 GENERARE MACHETE XLS_1
-Group : LEA JT
-With QGIS : 33802
-"""
+# MARK: 1. RefactorFieldsTrCuNrCrtText
 
-from qgis.core import QgsProcessing
-from qgis.core import QgsProcessingAlgorithm
-from qgis.core import QgsProcessingMultiStepFeedback
-from qgis.core import QgsProcessingParameterVectorLayer
-from qgis.core import QgsProcessingParameterFeatureSink
-import processing
-
-
-class GenerareMacheteXls_1(QgsProcessingAlgorithm):
-    def initAlgorithm(self, config=None):
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                "linie", "LINIE", types=[QgsProcessing.TypeVector], defaultValue=None
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                "stalp_xml_",
-                "STALP_XML_",
-                types=[QgsProcessing.TypeVectorPoint],
-                defaultValue=None,
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                "tronson_aranjat_",
-                "TRONSON_ARANJAT_",
-                types=[QgsProcessing.TypeVectorLine],
-                defaultValue=None,
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                "tronson_xml_",
-                "TRONSON_XML_",
-                types=[QgsProcessing.TypeVectorLine],
-                defaultValue=None,
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                "Aux_tr",
-                "AUX_tr",
-                type=QgsProcessing.TypeVectorLine,
-                createByDefault=True,
-                supportsAppend=True,
-                defaultValue="TEMPORARY_OUTPUT",
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                "Linie_macheta",
-                "LINIE_MACHETA",
-                type=QgsProcessing.TypeVectorAnyGeometry,
-                createByDefault=True,
-                supportsAppend=True,
-                defaultValue="TEMPORARY_OUTPUT",
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                "StalpiMacheta",
-                "STALPI MACHETA",
-                type=QgsProcessing.TypeVectorAnyGeometry,
-                createByDefault=True,
-                supportsAppend=True,
-                defaultValue="TEMPORARY_OUTPUT",
-            )
-        )
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                "TronsonMacheta",
-                "TRONSON MACHETA",
-                type=QgsProcessing.TypeVectorAnyGeometry,
-                createByDefault=True,
-                supportsAppend=True,
-                defaultValue=None,
-            )
-        )
-
-    def processAlgorithm(self, parameters, context, model_feedback):
-        # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
-        # overall progress through the model
-        feedback = QgsProcessingMultiStepFeedback(12, model_feedback)
-        results = {}
-        outputs = {}
-
-        # Join attributes by field value
-        alg_params = {
-            "DISCARD_NONMATCHING": False,
-            "FIELD": "ID_LOC",
-            "FIELDS_TO_COPY": [""],
-            "FIELD_2": "ID_BDI",
-            "INPUT": parameters["tronson_aranjat_"],
-            "INPUT_2": parameters["linie"],
-            "METHOD": 1,  # Take attributes of the first matching feature only (one-to-one)
-            "PREFIX": None,
-            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-        }
-        outputs["JoinAttributesByFieldValue"] = processing.run(
-            "native:joinattributestable",
-            alg_params,
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-
-        feedback.setCurrentStep(1)
-        if feedback.isCanceled():
-            return {}
-
-        # Refactor TRONSON JT
+        # Refactor fields tr cu nr crt text
         alg_params = {
             "FIELDS_MAPPING": [
                 {
@@ -124,249 +8,44 @@ class GenerareMacheteXls_1(QgsProcessingAlgorithm):
                     "comment": None,
                     "expression": '"NR_CRT"',
                     "length": 0,
-                    "name": "Nr. crt",
+                    "name": "NR_CRT",
                     "precision": 0,
                     "sub_type": 0,
                     "type": 10,
                     "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"ID"',
-                    "length": 0,
-                    "name": "ID",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"DENUM"',
-                    "length": 0,
-                    "name": "Denumire",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": "'TR ' || \"DENUM\"",
-                    "length": 0,
-                    "name": "Descrierea BDI",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"PROP"',
-                    "length": 0,
-                    "name": "Proprietar",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"ID_LOC"',
-                    "length": 0,
-                    "name": "ID_Locatia",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"DENUM_2"',
-                    "length": 0,
-                    "name": "Locatia",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"NR_CRT_INC_TR"',
-                    "length": 0,
-                    "name": "Nr.crt_Inceput de tronson",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"Inceput de tronson"',
-                    "length": 0,
-                    "name": "Inceput de tronson",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"NR_CRT_FIN_TR"',
-                    "length": 0,
-                    "name": "Nr.crt_Final de tronson",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"Final de tronson"',
-                    "length": 0,
-                    "name": "Final de tronson",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"TIP_TR"',
-                    "length": 0,
-                    "name": "Tipul tronsonului",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"TIP_COND"',
-                    "length": 0,
-                    "name": "Tip conductor",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"LUNG_TR"',
-                    "length": 0,
-                    "name": "Lungimea tronsonului (km)",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"GEO"',
-                    "length": 0,
-                    "name": "Geometrie",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"SURSA_COORD"',
-                    "length": 0,
-                    "name": "Sursa coordonate",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"DATA_COORD"',
-                    "length": 0,
-                    "name": "Data actualizarii coordonatelor",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"UNIT_LOG_INT"',
-                    "length": 0,
-                    "name": "Unitate logistica de intretinere",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"S_UNIT_LOG"',
-                    "length": 0,
-                    "name": "Sectie unitate logistica",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"POST_LUC"',
-                    "length": 0,
-                    "name": "Post de lucru",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"Observatii"',
-                    "length": 0,
-                    "name": "Observatii",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
+                }
             ],
-            "INPUT": outputs["JoinAttributesByFieldValue"]["OUTPUT"],
+            "INPUT": parameters["tronson_xml_"],
             "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
         }
-        outputs["RefactorTronsonJt"] = processing.run(
+        outputs["RefactorFieldsTrCuNrCrtText"] = processing.run(
             "native:refactorfields",
+            alg_params
+        )
+
+
+# MARK: 2. FieldCalculatorStalpInceput
+
+        # Field calculator stalp inceput
+        alg_params = {
+            "FIELD_LENGTH": 0,
+            "FIELD_NAME": "Inceput de tronson",
+            "FIELD_PRECISION": 0,
+            "FIELD_TYPE": 0,  # Decimal (double)
+            "FORMULA": '"Descrierea BDI_2"',
+            "INPUT": outputs["JoinAttributesStalpInceput"]["OUTPUT"],
+            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+        }
+        outputs["FieldCalculatorStalpInceput"] = processing.run(
+            "native:fieldcalculator",
             alg_params,
             context=context,
             feedback=feedback,
             is_child_algorithm=True,
         )
 
-        feedback.setCurrentStep(2)
-        if feedback.isCanceled():
-            return {}
+# MARK: 3. RefactorStalpi
 
-        # Refactor STALPI
         alg_params = {
             "FIELDS_MAPPING": [
                 {
@@ -941,195 +620,9 @@ class GenerareMacheteXls_1(QgsProcessingAlgorithm):
             feedback=feedback,
             is_child_algorithm=True,
         )
-        results["StalpiMacheta"] = outputs["RefactorStalpi"]["OUTPUT"]
 
-        feedback.setCurrentStep(3)
-        if feedback.isCanceled():
-            return {}
 
-        # Refactor fields tr cu nr crt text
-        alg_params = {
-            "FIELDS_MAPPING": [
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"NR_CRT"',
-                    "length": 0,
-                    "name": "NR_CRT",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                }
-            ],
-            "INPUT": parameters["tronson_xml_"],
-            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-        }
-        outputs["RefactorFieldsTrCuNrCrtText"] = processing.run(
-            "native:refactorfields",
-            alg_params,
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-
-        feedback.setCurrentStep(4)
-        if feedback.isCanceled():
-            return {}
-
-        # Refactor LINIE JT
-        alg_params = {
-            "FIELDS_MAPPING": [
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"ID_BDI"',
-                    "length": 0,
-                    "name": "ID",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 6,
-                    "type_name": "double precision",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": None,
-                    "length": 0,
-                    "name": "Denumire",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"DENUM"',
-                    "length": 0,
-                    "name": "Descrierea BDI",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": "'DEER'",
-                    "length": 0,
-                    "name": "Proprietar",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"Locatia"',
-                    "length": 0,
-                    "name": "Locatia",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"Descrierea instalatiei superioare"',
-                    "length": 0,
-                    "name": "Descrierea instalatiei superioare",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"Nivel tensiune (kV)"',
-                    "length": 0,
-                    "name": "Nivel tensiune (kV)",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-                {
-                    "alias": None,
-                    "comment": None,
-                    "expression": '"Tipul liniei"',
-                    "length": 0,
-                    "name": "Tipul liniei",
-                    "precision": 0,
-                    "sub_type": 0,
-                    "type": 10,
-                    "type_name": "text",
-                },
-            ],
-            "INPUT": parameters["linie"],
-            "OUTPUT": parameters["Linie_macheta"],
-        }
-        outputs["RefactorLinieJt"] = processing.run(
-            "native:refactorfields",
-            alg_params,
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-        results["Linie_macheta"] = outputs["RefactorLinieJt"]["OUTPUT"]
-
-        feedback.setCurrentStep(5)
-        if feedback.isCanceled():
-            return {}
-
-        # Join attributes STALP INCEPUT
-        alg_params = {
-            "DISCARD_NONMATCHING": False,
-            "FIELD": "Nr.crt_Inceput de tronson",
-            "FIELDS_TO_COPY": [""],
-            "FIELD_2": "Nr crt",
-            "INPUT": outputs["RefactorTronsonJt"]["OUTPUT"],
-            "INPUT_2": outputs["RefactorStalpi"]["OUTPUT"],
-            "METHOD": 1,  # Take attributes of the first matching feature only (one-to-one)
-            "PREFIX": None,
-            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-        }
-        outputs["JoinAttributesStalpInceput"] = processing.run(
-            "native:joinattributestable",
-            alg_params,
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-
-        feedback.setCurrentStep(6)
-        if feedback.isCanceled():
-            return {}
-
-        # Field calculator stalp inceput
-        alg_params = {
-            "FIELD_LENGTH": 0,
-            "FIELD_NAME": "Inceput de tronson",
-            "FIELD_PRECISION": 0,
-            "FIELD_TYPE": 0,  # Decimal (double)
-            "FORMULA": '"Descrierea BDI_2"',
-            "INPUT": outputs["JoinAttributesStalpInceput"]["OUTPUT"],
-            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-        }
-        outputs["FieldCalculatorStalpInceput"] = processing.run(
-            "native:fieldcalculator",
-            alg_params,
-            context=context,
-            feedback=feedback,
-            is_child_algorithm=True,
-        )
-
-        feedback.setCurrentStep(7)
-        if feedback.isCanceled():
-            return {}
+# MARK: 4. JoinAttributesStalpSfarsit
 
         # Join attributes STALP SFARSIT
         alg_params = {
@@ -1151,9 +644,7 @@ class GenerareMacheteXls_1(QgsProcessingAlgorithm):
             is_child_algorithm=True,
         )
 
-        feedback.setCurrentStep(8)
-        if feedback.isCanceled():
-            return {}
+# MARK: 5. FieldCalculatorStalpSfarsit
 
         # Field calculator stalp sfarsit
         alg_params = {
@@ -1424,9 +915,8 @@ class GenerareMacheteXls_1(QgsProcessingAlgorithm):
         )
         results["TronsonMacheta"] = outputs["RefactorFieldsTronson"]["OUTPUT"]
 
-        feedback.setCurrentStep(10)
-        if feedback.isCanceled():
-            return {}
+
+# MARK: 6. Join Attr by Field Value
 
         # Join attributes by field value
         alg_params = {
@@ -1448,11 +938,9 @@ class GenerareMacheteXls_1(QgsProcessingAlgorithm):
             is_child_algorithm=True,
         )
 
-        feedback.setCurrentStep(11)
-        if feedback.isCanceled():
-            return {}
 
-        # Explode lines TRONSON prin AX
+# 4. Explode lines
+
         alg_params = {
             "INPUT": outputs["JoinAttributesByFieldValue"]["OUTPUT"],
             "OUTPUT": parameters["Aux_tr"],
@@ -1465,19 +953,285 @@ class GenerareMacheteXls_1(QgsProcessingAlgorithm):
             is_child_algorithm=True,
         )
         results["Aux_tr"] = outputs["ExplodeLinesTronsonPrinAx"]["OUTPUT"]
-        return results
+        
+# Refactor deschideri
 
-    def name(self):
-        return "005 GENERARE MACHETE XLS_1"
-
-    def displayName(self):
-        return "005 GENERARE MACHETE XLS_1"
-
-    def group(self):
-        return "LEA JT"
-
-    def groupId(self):
-        return "LEA JT"
-
-    def createInstance(self):
-        return GenerareMacheteXls_1()
+        # Refactor deschideri DESCHIDERI
+        alg_params = {
+            "FIELDS_MAPPING": [
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT"',
+                    "length": 0,
+                    "name": "Nr.crt",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"DENUM"',
+                    "length": 0,
+                    "name": "Denumire",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": "'DESC'  || ' ' || \"DENUM\"",
+                    "length": 0,
+                    "name": "Descrierea BDI",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": "array_to_string(\r\n    array_distinct(\r\n        aggregate(\r\n            layer:='AUX_tr',\r\n            aggregate:='array_agg',\r\n            expression:=\"ID_Locatia\",\r\n            filter:=geom_to_wkt($geometry) = geom_to_wkt(geometry(@parent))\r\n        )\r\n    ), ', '\r\n)\r\n",
+                    "length": 0,
+                    "name": "ID_Locatia",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": "array_to_string(\r\n    array_distinct(\r\n        aggregate(\r\n            layer:='AUX_tr',\r\n            aggregate:='array_agg',\r\n            expression:=\"Locatia\",\r\n            filter:=geom_to_wkt($geometry) = geom_to_wkt(geometry(@parent))\r\n        )\r\n    ), ', '\r\n)",
+                    "length": 0,
+                    "name": "Locatia",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_STP_INC"',
+                    "length": 0,
+                    "name": "Nr.crt_Inceput",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": 'substr("DENUM", 1, strpos("DENUM", \' - \') - 1)',
+                    "length": 0,
+                    "name": "Stâlpul de inceput",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_STP_TERM"',
+                    "length": 0,
+                    "name": "Nr.crt_sfarsit",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": 'substr("DENUM", strpos("DENUM", \' - \') + 3)',
+                    "length": 0,
+                    "name": "Stâlpul terminal",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"ID_Tronson JT1"',
+                    "length": 0,
+                    "name": "ID_Tronson JT1",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_TR_JT1"',
+                    "length": 0,
+                    "name": "Tronson JT1",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"ID_Tronson JT2"',
+                    "length": 0,
+                    "name": "ID_Tronson JT2",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_TR_JT2"',
+                    "length": 0,
+                    "name": "Tronson JT2",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"ID_Tronson JT3"',
+                    "length": 0,
+                    "name": "ID_Tronson JT3",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_TR_JT3"',
+                    "length": 0,
+                    "name": "Tronson JT3",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"ID_Tronson JT4"',
+                    "length": 0,
+                    "name": "ID_Tronson JT4",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_TR_JT4"',
+                    "length": 0,
+                    "name": "Tronson JT4",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"ID_Tronson JT5"',
+                    "length": 0,
+                    "name": "ID_Tronson JT5",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_TR_JT5"',
+                    "length": 0,
+                    "name": "Tronson JT5",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"ID_Tronson JT6"',
+                    "length": 0,
+                    "name": "ID_Tronson JT6",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"NR_CRT_TR_JT6"',
+                    "length": 0,
+                    "name": "Tronson JT6",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"LUNG"',
+                    "length": 0,
+                    "name": "Lungime (m)",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"GEO"',
+                    "length": 0,
+                    "name": "Geometrie",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+                {
+                    "alias": None,
+                    "comment": None,
+                    "expression": '"Observatii"',
+                    "length": 0,
+                    "name": "Observatii",
+                    "precision": 0,
+                    "sub_type": 0,
+                    "type": 10,
+                    "type_name": "text",
+                },
+            ],
+            "INPUT": parameters["deschideri_xml"],
+            "OUTPUT": parameters["DeschideriMacheta"],
+        }
+        outputs["RefactorDeschideriDeschideri"] = processing.run(
+            "native:refactorfields",
+            alg_params,
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
+        )
+        results["DeschideriMacheta"] = outputs["RefactorDeschideriDeschideri"]["OUTPUT"]
