@@ -6,6 +6,7 @@ from xml.dom import minidom
 from qgis.core import QgsProject, QgsMessageLog, Qgis  # type: ignore
 from PyQt5.QtCore import QThread, pyqtSignal # type: ignore
 from pathlib import Path # type: ignore
+from .helper_functions import HelperBase
 
 class GenerateXMLDialog(QDialog):
     
@@ -103,6 +104,7 @@ class GenerateXMLWorker(QThread):
     def __init__(self, base_dir, template_path, layers):
         super().__init__()
         self.base_dir = base_dir
+        self.helper = HelperBase()
         self.template_path = template_path
         self.layers = layers
 
@@ -143,7 +145,7 @@ class GenerateXMLWorker(QThread):
                     safe_layer_name = file_name_mapping.get(layer_name, layer_name)
 
                     xml_template_path = self.plugin_path(f"templates/{safe_layer_name}.xml")
-                    xml_path = os.path.join(self.base_dir, f"{safe_layer_name}.xml")
+                    xml_path = self.helper.create_valid_output(self.base_dir, f"{safe_layer_name}.xml", "xml")
 
                     if os.path.exists(xml_template_path):
                         self.populate_xml_template(xml_template_path, xml_path, layer)

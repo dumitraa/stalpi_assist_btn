@@ -65,7 +65,7 @@ class GenerateExcelDialog(QDialog):
 
             # Create a temporary copy of the template file
             new_file_name = f"ANEXA_4-6_machete_de_completat_JT.xlsx"
-            new_file_path = os.path.join(self.base_dir, new_file_name)
+            new_file_path = self.helper.create_valid_output(self.base_dir, new_file_name, "machete")
             self.copy_file(template_file, new_file_path)
 
             # Set up progress bar

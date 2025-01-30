@@ -46,7 +46,6 @@ class IgeaDeschidereParser:
         self.vector_layer = vector_layer
         self.deschideri: List[DeschidereJT] = []
         self.helper = HelperBase()
-        self.final_deschidere_layer = self.create_scratch_layer()
         
         self.layers = self.get_layers()
         if not self.layers:
@@ -89,7 +88,7 @@ class IgeaDeschidereParser:
         features = list(self.vector_layer.getFeatures())
         for feature in features:
             try:
-                loc_data = self.get_location_data(feature.id()) if self.final_deschidere_layer else {"id_loc": "", "locatia": ""}
+                loc_data = self.get_location_data(feature.id(), self.layers.get("DESCHIDERI MACHETA"))
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error getting location data: {e}", "StalpiAssist", level=Qgis.Critical)
                 loc_data = {"id_loc": "", "locatia": ""}
@@ -184,80 +183,37 @@ class IgeaDeschidereParser:
         workbook.save(excel_file)
 
 
-    def create_scratch_layer(self):
+    def get_location_data(self, fid, layer):
         """
-        Creates a scratch layer by performing all the necessary joins and spatial operations.
+        Retrieves location data from the 'DESCHIDERI MACHETA' layer.
+        
+        :param fid: Feature ID to search for
+        :param layer: The layer to search within
+        :return: Dictionary with "id_loc" and "locatia" fields
         """
-        try:            
-            # Load necessary layers
-            deschideri_layer = QgsProject.instance().mapLayersByName("DESCHIDERI_XML_")[0]
-            linie_jt_layer = QgsProject.instance().mapLayersByName("LINIE_JT")[0]
-            tronson_layer = QgsProject.instance().mapLayersByName("TRONSON_predare_xml")[0]
-                        
-            # First join (TRONSON_predare_xml with LINIE_JT) with prefix
-            joined_layer = processing.run("native:joinattributestable", {
-                'INPUT': tronson_layer,
-                'FIELD': 'ID_LOC',
-                'INPUT_2': linie_jt_layer,
-                'FIELD_2': 'ID_BDI',
-                'FIELDS_TO_COPY': ['ID_BDI', 'DENUM'],
-                'PREFIX': 'LINIE_JT_',
-                'OUTPUT': 'memory:'
-            })['OUTPUT']
-            joined_layer.setName("TRONSON_predare_xml_joined")
-                        
-            # Explode TRONSON_predare_xml
-            exploded_layer = processing.run("native:explodelines", {
-                'INPUT': joined_layer,
-                'OUTPUT': 'memory:'
-            })['OUTPUT']
-            exploded_layer.setName("TRONSON_predare_xml_exploded")
-                        
-            # Spatial join between DESCHIDERI_XML_ and exploded_layer
-            final_layer = processing.run("native:joinattributesbylocation", {
-                'INPUT': deschideri_layer,
-                'JOIN': exploded_layer,
-                'PREDICATE': [0],  # Intersects
-                'JOIN_FIELDS': ['LINIE_JT_ID_BDI', 'LINIE_JT_DENUM'],
-                'METHOD': 1,  # One-to-one
-                'OUTPUT': 'memory:'
-            })['OUTPUT']
-            final_layer.setName("DESCHIDERI_XML_final")
-                        
-            return final_layer
-        except IndexError as e:
-            QgsMessageLog.logMessage(f"IndexError: {e}. Check if all required layers are loaded correctly.", "StalpiAssist", level=Qgis.Critical)
-        except Exception as e:
-            QgsMessageLog.logMessage(f"An error occurred while creating scratch layer: {e}", "StalpiAssist", level=Qgis.Critical)
-        return None
+        
+        if not layer:
+            QgsMessageLog.logMessage(f"Layer 'DESCHIDERI MACHETA' not found!", "StalpiAssist", level=Qgis.Critical)
+            return {"id_loc": "", "locatia": ""}
 
-    def get_location_data(self, fid):
-        """
-        Returns a dictionary with ID_Locatia (LINIE_JT_ID_BDI) and Locatia (LINIE_JT_DENUM) for a given feature ID.
-        """
-        try:
-            if not self.final_deschidere_layer:
-                QgsMessageLog.logMessage("Error: final_deschidere_layer is None", "StalpiAssist", level=Qgis.Critical)
-                return None
+        # Use QgsFeatureRequest to filter by fid
+        request = QgsFeatureRequest().setFilterExpression(f'"fid" = {fid}')
 
-            # Fetch feature
-            feature = next(self.final_deschidere_layer.getFeatures(QgsFeatureRequest(fid)), None)
+        feature = next(layer.getFeatures(request), None)
 
-            if feature:
-                # Debug available fields
-                available_fields = [field.name() for field in self.final_deschidere_layer.fields()]
-                # Ensure required fields exist
-                id_locatia = feature["LINIE_JT_ID_BDI"] if "LINIE_JT_ID_BDI" in available_fields else None
-                locatia = feature["LINIE_JT_DENUM"] if "LINIE_JT_DENUM" in available_fields else None
+        if not feature:
+            QgsMessageLog.logMessage(f"Feature with fid {fid} not found!", "StalpiAssist", level=Qgis.Critical)
+            return {"id_loc": "", "locatia": ""}
 
-                return {"id_loc": id_locatia, "locatia": locatia}
-            else:
-                QgsMessageLog.logMessage("Feature not found", "StalpiAssist", level=Qgis.Warning)
-                return None
+        # Extract fields with fallback for None, "NULL", or "nan"
+        def clean_value(value):
+            return "" if value in [None, "NULL", "nan"] else str(value)
 
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error retrieving feature data: {e}", "StalpiAssist", level=Qgis.Critical)
-        return None
+        id_loc = clean_value(feature["ID_Locatia"])
+        locatia = clean_value(feature["Locatia"])
+
+        return {"id_loc": id_loc, "locatia": locatia}
+
 
 
     def get_layers(self):
@@ -265,7 +221,7 @@ class IgeaDeschidereParser:
         Get layers by name from the QGIS project and add them to self.layers
         '''
         layers = {}
-        layer_names = ["TRONSON_predare_xml", "LINIE_JT", 'DESCHIDERI_XML_', 'DESCHIDERI_XML_final', 'TRONSON_predare_xml_exploded', 'TRONSON_predare_xml_joined']
+        layer_names = ["TRONSON_predare_xml", "LINIE_JT", 'DESCHIDERI_XML_', 'DESCHIDERI MACHETA']
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()

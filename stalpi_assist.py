@@ -30,7 +30,7 @@ from qgis.core import QgsMessageLog, QgsProcessingFeedback, Qgis, QgsProcessingC
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
 import processing # type: ignore
 from qgis.core import register_function # type: ignore
-from qgis.core import QgsGeometry, QgsWkbTypes # type: ignore
+from qgis.core import QgsGeometry, QgsWkbTypes, QgsVectorLayer # type: ignore
 from qgis.PyQt.QtWidgets import QMessageBox # type: ignore 
 
 
@@ -199,17 +199,17 @@ class StalpiAssist:
                 enabled_flag=False
             ),
             self.add_action(
-                "003_TRONSOANE_DUBLE",
-                text=self.tr(u'003_TRONSOANE_DUBLE'),
-                callback=self.run_tronsoane_duble_model,
+                "004_DESCHIDERI_JT",
+                text=self.tr(u'004_DESCHIDERI_JT'),
+                callback=self.run_deschideri_model,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/4.png')),
                 enabled_flag=False
             ),
             self.add_action(
-                "004_DESCHIDERI_JT",
-                text=self.tr(u'004_DESCHIDERI_JT'),
-                callback=self.run_deschideri_model,
+                "003_TRONSOANE_DUBLE",
+                text=self.tr(u'003_TRONSOANE_DUBLE'),
+                callback=self.run_tronsoane_duble_model,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/5.png')),
                 enabled_flag=False
@@ -220,6 +220,14 @@ class StalpiAssist:
                 callback=self.generate_xml,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/xml.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "Generare Machete",
+                text=self.tr(u'Generare Machete'),
+                callback=self.generare_machete,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/macheta.png')),
                 enabled_flag=False
             ),
             self.add_action(
@@ -290,8 +298,10 @@ class StalpiAssist:
         # Search for the layer by name in the current project
         layers = QgsProject.instance().mapLayersByName(layer_name)
         if not layers:
-            print(f"Layer '{layer_name}' not found in the project.")
+            QgsMessageLog.logMessage(f"Layer '{layer_name}' not found in the project.", "StalpiAssist", level=Qgis.Warning)
             return None
+        else:
+            QgsMessageLog.logMessage(f"Layer '{layer_name}' found in the project.", "StalpiAssist", level=Qgis.Info)
         
         # Get the first matching layer
         layer = layers[0]
@@ -302,6 +312,7 @@ class StalpiAssist:
         if layer.storageType() == "GeoPackage" and "|layername=" not in data_source:
             data_source += f"|layername={layer.name()}"
         
+        QgsMessageLog.logMessage(f"Layer '{layer_name}' data source: {data_source}", "StalpiAssist", level=Qgis.Info)
         return data_source
     
     
@@ -383,15 +394,40 @@ class StalpiAssist:
         }
         
         try:
+            # Run the processing model
             processing.run("model:004 DESCHIDERI JT", params, context=self.context)
+            
+            # Add resulting layers to the project
             self.helper.add_layer_to_project(params["deschideri_xml_"])
             self.helper.add_layer_to_project(params["scr_dwg"])
             QMessageBox.information(self.iface.mainWindow(), "Model Completed", "004 DESCHIDERI JT model finished successfully!")
             
+            # Retrieve the SCR_DWG layer
+            scr_dwg_layer = QgsVectorLayer(params["scr_dwg"], "SCR_DWG", "ogr")
+            if not scr_dwg_layer.isValid():
+                raise Exception("Failed to load the SCR_DWG layer.")
+            
+            # Extract the SCR_STLP column data
+            scr_stlp_data = []
+            for feature in scr_dwg_layer.getFeatures():
+                scr_stlp_value = feature["SCR_STLP"]
+                scr_stlp_data.append(scr_stlp_value)
+            
+            # Write to a .scr file in the "temp" subdirectory
+            scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")
+            
+            with open(scr_file_path, "w") as scr_file:
+                for line in scr_stlp_data:
+                    scr_file.write(f"{line}\n")
+            
+            QMessageBox.information(self.iface.mainWindow(), "Export Completed", f"SCR_STLP data exported to {scr_file_path} successfully!")
+            
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+
         
         
+    
     def run_tronsoane_duble_model(self):
         params = {
             'tronson_aranjat': self.get_layer_path('TRONSON_XML_'),
@@ -416,6 +452,49 @@ class StalpiAssist:
         dialog = GenerateExcelDialog(self.base_dir)  # Create an instance of your dialog
         dialog.exec_()  # Properly call exec_ on the instance
         
+    def generare_machete(self):
+        xls1_params = {
+            'linie': self.get_layer_path('LINIE_JT'),
+            'stalp_xml_': self.get_layer_path('STALP_XML_'),
+            'tronson_aranjat_': self.get_layer_path('TRONSON_predare_xml'),
+            'tronson_xml_': self.get_layer_path('TRONSON_XML_'),
+            'aux_tr': self.helper.create_valid_output(self.base_dir, "AUX_tr.gpkg", "machete"),
+            'linie_macheta': self.helper.create_valid_output(self.base_dir, "LINIE_MACHETA.gpkg", "machete"),
+            'stalpi_macheta': self.helper.create_valid_output(self.base_dir, "STALPI MACHETA.gpkg", "machete"),
+            'tronson_macheta': self.helper.create_valid_output(self.base_dir, "TRONSON MACHETA.gpkg", "machete")
+        }
+        
+        xls2_params = {
+            'bransament_xml_': self.get_layer_path('BRANSAMENT_XML_'),
+            'deschideri_xml': self.get_layer_path('DESCHIDERI_XML_'),
+            'firida_xml_': self.get_layer_path('FIRIDA_XML_'),
+            'grup_masura_xml_': self.get_layer_path('GRUP_MASURA_XML_'),
+            'linia_jt': self.get_layer_path('LINIE_JT'),
+            'firida_macheta': self.helper.create_valid_output(self.base_dir, "FIRIDA MACHETA.gpkg", "machete"),
+            'grup_masura_macheta': self.helper.create_valid_output(self.base_dir, "GRUP MASURA MACHETA.gpkg", "machete"),
+            'deschideri_macheta': self.helper.create_valid_output(self.base_dir, "DESCHIDERI MACHETA.gpkg", "machete"),
+            'bransamente_macheta': self.helper.create_valid_output(self.base_dir, "BRANSAMENTE MACHETA.gpkg", "machete")
+        }
+        
+        try:
+            processing.run('model:005 GENERARE MACHETE XLS_1', xls1_params)
+            self.helper.add_layer_to_project(xls1_params['aux_tr'])
+            self.helper.add_layer_to_project(xls1_params['linie_macheta'])
+            self.helper.add_layer_to_project(xls1_params['stalpi_macheta'])
+            self.helper.add_layer_to_project(xls1_params['tronson_macheta'])
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "XLS_1 Model Error", f"An error occurred: {str(e)}")
+    
+        try: 
+            processing.run('model:006 GENERARE MACHETE XLS_2', xls2_params)
+            self.helper.add_layer_to_project(xls2_params['firida_macheta'])
+            self.helper.add_layer_to_project(xls2_params['grup_masura_macheta'])
+            self.helper.add_layer_to_project(xls2_params['deschideri_macheta'])
+            self.helper.add_layer_to_project(xls2_params['bransamente_macheta'])
+        except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "XLS_2 Model Error", f"An error occurred: {str(e)}")
+            
+        QMessageBox.information(self.iface.mainWindow(), "Model Completed", "Generare Machete models finished successfully!")
         
     def process_layers(self, layers):
         if not self.processor:
