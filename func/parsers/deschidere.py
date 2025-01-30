@@ -169,7 +169,6 @@ class IgeaDeschidereParser:
         workbook = load_workbook(excel_file)
         sheet = workbook["DESCHIDERE"]
         
-        #TODO: the start row is the row below the last written row
         start_row = sheet.max_row + 1
         header_row = sheet.max_row - 1
         existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
