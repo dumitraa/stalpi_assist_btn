@@ -163,7 +163,6 @@ class IgeaDeschidereParser:
                 mapping = self.mapping.get(header)
                 value = self.resolve_mapping(deschidere, mapping)
                 value = "" if value in ["NULL", "None", None, "nan"] else value
-                QgsMessageLog.logMessage(f"Header: {header}, Value: {value}", "StalpiAssist", level=Qgis.Info)
                 row.append(value)
             data.append(row)
         
