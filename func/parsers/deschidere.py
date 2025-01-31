@@ -2,8 +2,6 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject, QgsFeatureRequest # type: ignore
 from ..helper_functions import HelperBase
-import processing # type: ignore
-
 
 
 class DeschidereJT:

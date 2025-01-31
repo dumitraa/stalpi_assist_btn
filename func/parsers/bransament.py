@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject  # type: ignore
 
+
 class BransamentJT():
     def __init__(self, id, id_bdi, nr_crt, denum, class_id_loc, id_loc, nr_crt_loc, 
                  class_id_plc_br, id_plc_br, nr_crt_plc_br, tip_br, tip_cond, lung, jud, 

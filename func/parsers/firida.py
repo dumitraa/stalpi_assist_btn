@@ -3,8 +3,6 @@ from openpyxl import load_workbook
 import pandas as pd
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 
-# from ..helper_functions import HelperBase, SHPProcessor
-
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
                  class_id_inst_sup, id_inst_sup, nr_crt_inst_sup, jud, prim, loc, tip_str, 
