@@ -95,7 +95,7 @@ class IgeaLinieParser:
             for header in headers:
                 mapping = self.mapping.get(header)
                 value = self.resolve_mapping(linie, mapping)
-                value = "" if value in ["NULL", None, "nan"] else value
+                value = "" if value in ["NULL", "None", None, "nan"] else value
                 row.append(value)
             data.append(row)
         

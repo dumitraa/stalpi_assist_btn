@@ -172,7 +172,7 @@ class IgeaFiridaParser:
             for header in headers:
                 mapping = self.mapping[header]
                 value = self.resolve_mapping(firida, mapping)
-                value = "" if value in ["NULL", None, "nan"] else value
+                value = "" if value in ["NULL", "None", None, "nan"] else value
                 row.append(value)
             data.append(row)
 

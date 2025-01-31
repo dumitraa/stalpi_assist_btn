@@ -172,7 +172,7 @@ class GenerateXMLWorker(QThread):
 
             sorted_features = sorted(
                 layer.getFeatures(),
-                key=lambda f: f["NR_CRT"] if f["NR_CRT"] not in [None, "NULL", "nan"] else float("inf")
+                key=lambda f: f["NR_CRT"] if f["NR_CRT"] not in [None, "None", "NULL", "nan"] else float("inf")
             )
 
             for feature in sorted_features:
@@ -185,7 +185,7 @@ class GenerateXMLWorker(QThread):
                         if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
                             field_value = f"{field_value} circuite"
                     child_element = ET.SubElement(new_element, field.name())
-                    if field_value not in [None, "NULL", "nan"]:
+                    if field_value not in [None, "None", "NULL", "nan"]:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 parent.append(new_element)
 
@@ -206,7 +206,7 @@ class GenerateXMLWorker(QThread):
                 for field in layer.fields():
                     field_value = feature[field.name()]
                     field_elem = ET.SubElement(feature_elem, field.name())
-                    if field_value not in [None, "NULL", "nan"]:
+                    if field_value not in [None, "None", "NULL", "nan"]:
                         field_elem.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
             rough_string = ET.tostring(root, 'utf-8')
