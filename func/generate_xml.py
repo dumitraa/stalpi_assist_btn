@@ -147,7 +147,7 @@ class GenerateXMLWorker(QThread):
                     xml_template_path = self.plugin_path(f"templates/{safe_layer_name}.xml")
                     xml_path = self.helper.create_valid_output(self.base_dir, f"{safe_layer_name}.xml", "xml")
 
-                    if os.path.exists(xml_template_path):
+                    if xml_template_path.exists():
                         self.populate_xml_template(xml_template_path, xml_path, layer)
                     else:
                         self.export_to_default_xml(xml_path, layer, safe_layer_name)
@@ -170,12 +170,11 @@ class GenerateXMLWorker(QThread):
             for child in root.findall(repeating_element_tag):
                 parent.remove(child)
 
-        # Sort features by NR_CRT
             sorted_features = sorted(
-                layer.getFeatures(), 
+                layer.getFeatures(),
                 key=lambda f: f["NR_CRT"] if f["NR_CRT"] not in [None, "NULL", "nan"] else float("inf")
             )
-            
+
             for feature in sorted_features:
                 new_element = ET.Element(repeating_element_tag)
                 for field in layer.fields():
@@ -187,12 +186,12 @@ class GenerateXMLWorker(QThread):
                             field_value = f"{field_value} circuite"
                     child_element = ET.SubElement(new_element, field.name())
                     if field_value not in [None, "NULL", "nan"]:
-                        child_element.text = str(field_value)
+                        child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 parent.append(new_element)
 
-            rough_string = ET.tostring(root, 'utf-8-sig')
-            reparsed = minidom.parseString(rough_string)
-            with open(xml_output_path, "w", encoding="utf-8-sig") as f:
+            rough_string = ET.tostring(root, 'utf-8')
+            reparsed = minidom.parseString(rough_string.decode("utf-8"))
+            with open(xml_output_path, "w", encoding="utf-8") as f:
                 f.write(reparsed.toprettyxml(indent="  "))
 
         except Exception as e:
@@ -208,11 +207,11 @@ class GenerateXMLWorker(QThread):
                     field_value = feature[field.name()]
                     field_elem = ET.SubElement(feature_elem, field.name())
                     if field_value not in [None, "NULL", "nan"]:
-                        field_elem.text = str(field_value)
+                        field_elem.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-            rough_string = ET.tostring(root, 'utf-8-sig')
-            reparsed = minidom.parseString(rough_string)
-            with open(xml_output_path, "w", encoding="utf-8-sig") as f:
+            rough_string = ET.tostring(root, 'utf-8')
+            reparsed = minidom.parseString(rough_string.decode("utf-8"))
+            with open(xml_output_path, "w", encoding="utf-8") as f:
                 f.write(reparsed.toprettyxml(indent="  "))
 
         except Exception as e:

@@ -105,7 +105,6 @@ class HelperBase:
 
 
     def add_layer_to_project(self, layer):
-        QgsMessageLog.logMessage(f"Adding layer to project: {layer}", "StalpiAssist", level=Qgis.Info)
         try:
             if isinstance(layer, str):  # If layer is a file path
                 layer_name = os.path.splitext(os.path.basename(layer))[0]

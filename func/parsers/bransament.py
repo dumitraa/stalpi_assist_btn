@@ -50,7 +50,7 @@ class IgeaBransamentParser:
             "ID_PAPT/Nr. Crt_Plecare bransament": "nr_crt_plc_br",
             "Plecare bransament": lambda br: self.get_stalpi_value(br),
             "Tip bransament": "tip_br",
-            "Tipul dispunerii": lambda br: "LES" if "XABY" in br.tip_cond or "ACYABY" in br.tip_cond else "LEA",
+            "Tipul dispunerii": lambda br: "LES" if "XABY" in str(br.tip_cond) or "ACYABY" in str(br.tip_cond) else "LEA",
             "Tip conductor": "tip_cond",
             "Lungime (m)": "lung",
             "Judet": "jud",

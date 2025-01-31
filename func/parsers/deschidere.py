@@ -88,7 +88,7 @@ class IgeaDeschidereParser:
         features = list(self.vector_layer.getFeatures())
         for feature in features:
             try:
-                loc_data = self.get_location_data(feature.id(), self.layers.get("DESCHIDERI MACHETA"))
+                loc_data = self.get_location_data(feature["NR_CRT"], self.layers.get("DESCHIDERI MACHETA"))
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error getting location data: {e}", "StalpiAssist", level=Qgis.Critical)
                 loc_data = {"id_loc": "", "locatia": ""}
@@ -196,12 +196,12 @@ class IgeaDeschidereParser:
             return {"id_loc": "", "locatia": ""}
 
         # Use QgsFeatureRequest to filter by fid
-        request = QgsFeatureRequest().setFilterExpression(f'"fid" = {fid}')
+        request = QgsFeatureRequest().setFilterExpression(f'"Nr.crt" = {fid}')
 
         feature = next(layer.getFeatures(request), None)
 
         if not feature:
-            QgsMessageLog.logMessage(f"Feature with fid {fid} not found!", "StalpiAssist", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Feature with Nr.crt {fid} not found!", "StalpiAssist", level=Qgis.Critical)
             return {"id_loc": "", "locatia": ""}
 
         # Extract fields with fallback for None, "NULL", or "nan"

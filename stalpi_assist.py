@@ -30,8 +30,9 @@ from qgis.core import QgsMessageLog, QgsProcessingFeedback, Qgis, QgsProcessingC
 from qgis.PyQt.QtWidgets import QFileDialog # type: ignore
 import processing # type: ignore
 from qgis.core import register_function # type: ignore
-from qgis.core import QgsGeometry, QgsWkbTypes, QgsVectorLayer # type: ignore
+from qgis.core import QgsGeometry, QgsWkbTypes, QgsVectorLayer, QgsProcessing # type: ignore
 from qgis.PyQt.QtWidgets import QMessageBox # type: ignore 
+from qgis.core import QgsVectorFileWriter, QgsCoordinateTransformContext
 
 
 
@@ -300,8 +301,6 @@ class StalpiAssist:
         if not layers:
             QgsMessageLog.logMessage(f"Layer '{layer_name}' not found in the project.", "StalpiAssist", level=Qgis.Warning)
             return None
-        else:
-            QgsMessageLog.logMessage(f"Layer '{layer_name}' found in the project.", "StalpiAssist", level=Qgis.Info)
         
         # Get the first matching layer
         layer = layers[0]
@@ -312,9 +311,15 @@ class StalpiAssist:
         if layer.storageType() == "GeoPackage" and "|layername=" not in data_source:
             data_source += f"|layername={layer.name()}"
         
-        QgsMessageLog.logMessage(f"Layer '{layer_name}' data source: {data_source}", "StalpiAssist", level=Qgis.Info)
         return data_source
     
+    def get_layer_by_name(self, layer_name):
+        """Retrieve a layer from the QGIS project by name."""
+        layer = QgsProject.instance().mapLayersByName(layer_name)
+        if layer:
+            return layer[0]  # Return the first matching layer
+        else:
+            raise Exception(f"Layer '{layer_name}' not found in the project.")
     
     def set_base_dir(self):
         """Set base directory and update icons."""
@@ -329,117 +334,272 @@ class StalpiAssist:
                 
             self.feedback = QgsProcessingFeedback()
             self.context.setProject(QgsProject.instance())
-
-
+            
     def run_tronson_model(self):
-        """Run Tronson model with a progress window."""
         params = {
             "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
             "stalpi_desenati": self.get_layer_path("STALP_JT"),
             "tronson_desenat": self.get_layer_path("TRONSON_JT"),
-            "tronson_xml_": os.path.join(self.base_dir, f"TRONSON_XML_.gpkg")
+            "tronson_xml_": QgsProcessing.TEMPORARY_OUTPUT
         }
 
         try:
-            processing.run("model:001 TRONSON_JT", params, context=self.context)
-            self.helper.add_layer_to_project(params["tronson_xml_"])
+            result = processing.run("model:001 TRONSON_JT", params)
+            
+            scratch_layer = result["tronson_xml_"]
+
+            if isinstance(scratch_layer, QgsVectorLayer):
+                scratch_layer.setName("TRONSON_XML_")
+                QgsProject.instance().addMapLayer(scratch_layer)
+                save_path = os.path.join(self.base_dir, "TRONSON_XML_.gpkg")
+
+                options = QgsVectorFileWriter.SaveVectorOptions()
+                options.driverName = "GPKG"  # Saves as a GeoPackage
+                options.fileEncoding = "UTF-8"
+
+                error = QgsVectorFileWriter.writeAsVectorFormatV3(scratch_layer, save_path, QgsCoordinateTransformContext(), options)
+
+                if error[0] == QgsVectorFileWriter.NoError:
+                    QMessageBox.information(self.iface.mainWindow(), "Success", f"Layer saved successfully at {save_path}")
+                else:
+                    QMessageBox.critical(self.iface.mainWindow(), "Save Error", f"Failed to save layer: {error}")
+
+            else:
+                raise TypeError("Unexpected output type from processing.run")
+
             QMessageBox.information(self.iface.mainWindow(), "Model Completed", "001 TRONSON_JT model finished successfully!")
-        
+
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+            
 
-
-
-    def run_brans_model(self):        
+    def run_brans_model(self):
+        """Run Brans model with a progress window."""
+        
         params = {
             "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
             "fb_pe_c_les": self.get_layer_path("FB pe C LES"),
             "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
-            "bransament_xml_": os.path.join(self.base_dir, f"BRANSAMENT_XML_.gpkg"),
-            "grup_masura_xml_": os.path.join(self.base_dir, f"GRUP_MASURA_XML_.gpkg"),
-            "firida_xml_": os.path.join(self.base_dir, f"FIRIDA_XML_.gpkg")
-        }   
-        try: 
-            processing.run("model:002 BRANS_FIRI_GR", params, context=self.context)
-            self.helper.add_layer_to_project(params["bransament_xml_"])
-            self.helper.add_layer_to_project(params["grup_masura_xml_"])
-            self.helper.add_layer_to_project(params["firida_xml_"])
+            "bransament_xml_": QgsProcessing.TEMPORARY_OUTPUT,  # Scratch layer
+            "grup_masura_xml_": QgsProcessing.TEMPORARY_OUTPUT,  # Scratch layer
+            "firida_xml_": QgsProcessing.TEMPORARY_OUTPUT  # Scratch layer
+        }
+
+        try:
+            # Run the processing model
+            result = processing.run("model:002 BRANS_FIRI_GR", params)
+
+            # Dictionary to store layer names and their permanent save paths
+            layers_to_save = {
+                "bransament_xml_": "BRANSAMENT_XML_.gpkg",
+                "grup_masura_xml_": "GRUP_MASURA_XML_.gpkg",
+                "firida_xml_": "FIRIDA_XML_.gpkg"
+            }
+
+            for key, filename in layers_to_save.items():
+                scratch_layer = result[key]
+                if isinstance(scratch_layer, QgsVectorLayer):
+                    # Rename and add scratch layer to project
+                    scratch_layer.setName(key.upper())  # Ensure consistency with naming
+                    QgsProject.instance().addMapLayer(scratch_layer)
+
+                    # Define save path
+                    save_path = os.path.join(self.base_dir, filename)
+
+                    # Save a permanent copy
+                    options = QgsVectorFileWriter.SaveVectorOptions()
+                    options.driverName = "GPKG"  # Saves as a GeoPackage
+                    options.fileEncoding = "UTF-8"
+
+                    error = QgsVectorFileWriter.writeAsVectorFormatV3(
+                        scratch_layer, save_path, QgsCoordinateTransformContext(), options
+                    )
+
+                    if error[0] == QgsVectorFileWriter.NoError:
+                        QMessageBox.information(
+                            self.iface.mainWindow(), "Success", f"Layer {key} saved successfully at {save_path}"
+                        )
+                    else:
+                        QMessageBox.critical(
+                            self.iface.mainWindow(), "Save Error", f"Failed to save layer {key}: {error}"
+                        )
+                else:
+                    raise TypeError(f"Unexpected output type for {key} from processing.run")
+
             QMessageBox.information(self.iface.mainWindow(), "Model Completed", "002 BRANS_FIRI_GR model finished successfully!")
-            
+
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
-        
+
     def run_stalp_model(self):
+        """Run Stalp model with a progress window."""
+        
         params = {
             "poze_geotag": self.get_layer_path("poze"),
             "stalp_in_lucru": self.get_layer_path("STALP_JT"),
-            "stalp_xml_": os.path.join(self.base_dir, f"STALP_XML_.gpkg")
-        }
-        
-        try:
-            processing.run("model:003 STALP JT generare", params, context=self.context)
-            self.helper.add_layer_to_project(params["stalp_xml_"])
-            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "003 STALP JT model finished successfully!")
-            
-        except Exception as e:
-            QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
-    
-    
-    def run_deschideri_model(self):        
-        params = {
-            'stalpi_desenati': self.get_layer_path('STALP_JT'),
-            'tronson_jt': self.get_layer_path('TRONSON_XML_'),
-            'deschideri_xml_': os.path.join(self.base_dir, f"DESCHIDERI_XML_.gpkg"),
-            'scr_dwg': os.path.join(self.base_dir, f"SCR_DWG.gpkg"),
+            "stalp_xml_": QgsProcessing.TEMPORARY_OUTPUT  # Scratch layer
         }
         
         try:
             # Run the processing model
-            processing.run("model:004 DESCHIDERI JT", params, context=self.context)
-            
-            # Add resulting layers to the project
-            self.helper.add_layer_to_project(params["deschideri_xml_"])
-            self.helper.add_layer_to_project(params["scr_dwg"])
-            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "004 DESCHIDERI JT model finished successfully!")
-            
-            # Retrieve the SCR_DWG layer
-            scr_dwg_layer = QgsVectorLayer(params["scr_dwg"], "SCR_DWG", "ogr")
-            if not scr_dwg_layer.isValid():
-                raise Exception("Failed to load the SCR_DWG layer.")
-            
-            # Extract the SCR_STLP column data
-            scr_stlp_data = []
-            for feature in scr_dwg_layer.getFeatures():
-                scr_stlp_value = feature["SCR_STLP"]
-                scr_stlp_data.append(scr_stlp_value)
-            
-            # Write to a .scr file in the "temp" subdirectory
-            scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")
-            
-            with open(scr_file_path, "w") as scr_file:
-                for line in scr_stlp_data:
-                    scr_file.write(f"{line}\n")
-            
-            QMessageBox.information(self.iface.mainWindow(), "Export Completed", f"SCR_STLP data exported to {scr_file_path} successfully!")
-            
+            result = processing.run("model:003 STALP JT generare", params)
+
+            # Retrieve the scratch layer
+            scratch_layer = result["stalp_xml_"]
+
+            if isinstance(scratch_layer, QgsVectorLayer):
+                # Rename and add scratch layer to project
+                scratch_layer.setName("STALP_XML_")
+                QgsProject.instance().addMapLayer(scratch_layer)
+
+                # Define save path
+                save_path = os.path.join(self.base_dir, "STALP_XML_.gpkg")
+
+                # Save a permanent copy
+                options = QgsVectorFileWriter.SaveVectorOptions()
+                options.driverName = "GPKG"  # Saves as a GeoPackage
+                options.fileEncoding = "UTF-8"
+
+                error = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    scratch_layer, save_path, QgsCoordinateTransformContext(), options
+                )
+
+                if error[0] == QgsVectorFileWriter.NoError:
+                    QMessageBox.information(
+                        self.iface.mainWindow(), "Success", f"Layer STALP_XML_ saved successfully at {save_path}"
+                    )
+                else:
+                    QMessageBox.critical(
+                        self.iface.mainWindow(), "Save Error", f"Failed to save layer STALP_XML_: {error}"
+                    )
+            else:
+                raise TypeError("Unexpected output type for stalp_xml_ from processing.run")
+
+            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "003 STALP JT model finished successfully!")
+
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
 
-        
-        
     
-    def run_tronsoane_duble_model(self):
+    def run_deschideri_model(self):
+        """Run Deschideri model with a progress window."""
+        
         params = {
-            'tronson_aranjat': self.get_layer_path('TRONSON_XML_'),
-            'tronson_predare_xml': os.path.join(self.base_dir, f"TRONSON_predare_xml.gpkg"),
+            "stalpi_desenati": self.get_layer_by_name("STALP_JT"),
+            "tronson_jt": self.get_layer_by_name("TRONSON_JT"),
+            "deschideri_xml_": QgsProcessing.TEMPORARY_OUTPUT,  # Scratch layer
+            "scr_dwg": QgsProcessing.TEMPORARY_OUTPUT  # Scratch layer
         }
         
         try:
-            processing.run("model:TRONSOANE DUBLE ACTUALIZARE", params, context=self.context)
-            self.helper.add_layer_to_project(params["tronson_predare_xml"])
-            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "TRONSOANE DUBLE ACTUALIZARE model finished successfully!")
+            # Run the processing model
+            result = processing.run("model:004 DESCHIDERI JT", params)
+
+            # Dictionary to store layers and their corresponding permanent file paths
+            layers_to_save = {
+                "deschideri_xml_": "DESCHIDERI_XML_.gpkg",
+                "scr_dwg": "SCR_DWG.gpkg"
+            }
+
+            for key, filename in layers_to_save.items():
+                scratch_layer = result[key]
+                if isinstance(scratch_layer, QgsVectorLayer):
+                    # Rename and add scratch layer to project
+                    scratch_layer.setName(key.upper())
+                    QgsProject.instance().addMapLayer(scratch_layer)
+
+                    # Define save path
+                    save_path = os.path.join(self.base_dir, filename)
+
+                    # Save a permanent copy
+                    options = QgsVectorFileWriter.SaveVectorOptions()
+                    options.driverName = "GPKG"  # Saves as a GeoPackage
+                    options.fileEncoding = "UTF-8"
+
+                    error = QgsVectorFileWriter.writeAsVectorFormatV3(
+                        scratch_layer, save_path, QgsCoordinateTransformContext(), options
+                    )
+
+                    if error[0] == QgsVectorFileWriter.NoError:
+                        QMessageBox.information(
+                            self.iface.mainWindow(), "Success", f"Layer {key} saved successfully at {save_path}"
+                        )
+                    else:
+                        QMessageBox.critical(
+                            self.iface.mainWindow(), "Save Error", f"Failed to save layer {key}: {error}"
+                        )
+                else:
+                    raise TypeError(f"Unexpected output type for {key} from processing.run")
+
+            # Retrieve the SCR_DWG layer for .scr file export
+            scr_dwg_path = os.path.join(self.base_dir, "SCR_DWG.gpkg")
+            scr_dwg_layer = QgsVectorLayer(scr_dwg_path, "SCR_DWG", "ogr")
             
+            if not scr_dwg_layer.isValid():
+                raise Exception("Failed to load the SCR_DWG layer.")
+
+            # Extract SCR_STLP column data
+            scr_stlp_data = [feature["SCR_STLP"] for feature in scr_dwg_layer.getFeatures() if "SCR_STLP" in feature]
+
+            # Write to a .scr file in the "temp" subdirectory
+            scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")
+
+            with open(scr_file_path, "w") as scr_file:
+                for line in scr_stlp_data:
+                    scr_file.write(f"{line}\n")
+
+            QMessageBox.information(self.iface.mainWindow(), "Export Completed", f"SCR_STLP data exported to {scr_file_path} successfully!")
+
         except Exception as e:
+            QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+
+    def run_tronsoane_duble_model(self):
+        """Run TRONSOANE DUBLE ACTUALIZARE model with a scratch layer and saved copy."""
+        
+        params = {
+            "tronson_aranjat": self.get_layer_by_name("TRONSON_XML_"),
+            "tronson_predare_xml": QgsProcessing.TEMPORARY_OUTPUT  # Scratch layer
+        }
+        
+        try:
+            # Run the processing model
+            result = processing.run("model:TRONSOANE DUBLE ACTUALIZARE", params)
+
+            # Retrieve the scratch layer
+            scratch_layer = result["tronson_predare_xml"]
+
+            if isinstance(scratch_layer, QgsVectorLayer):
+                # Rename and add scratch layer to project
+                scratch_layer.setName("TRONSON_predare_xml")
+                QgsProject.instance().addMapLayer(scratch_layer)
+
+                # Define save path
+                save_path = os.path.join(self.base_dir, "TRONSON_predare_xml.gpkg")
+
+                # Save a permanent copy
+                options = QgsVectorFileWriter.SaveVectorOptions()
+                options.driverName = "GPKG"  # Saves as a GeoPackage
+                options.fileEncoding = "UTF-8"
+
+                error = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    scratch_layer, save_path, QgsCoordinateTransformContext(), options
+                )
+
+                if error[0] == QgsVectorFileWriter.NoError:
+                    QMessageBox.information(
+                        self.iface.mainWindow(), "Success", f"Layer TRONSON_predare_xml saved successfully at {save_path}"
+                    )
+                else:
+                    QMessageBox.critical(
+                        self.iface.mainWindow(), "Save Error", f"Failed to save layer TRONSON_predare_xml: {error}"
+                    )
+            else:
+                raise TypeError("Unexpected output type for tronson_predare_xml from processing.run")
+
+            QMessageBox.information(self.iface.mainWindow(), "Model Completed", "TRONSOANE DUBLE ACTUALIZARE model finished successfully!")
+
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error in TRONSOANE DUBLE ACTUALIZARE model: {str(e)}", "StalpiAssist", level=Qgis.Critical)
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
 
     def generate_xml(self):
@@ -453,49 +613,57 @@ class StalpiAssist:
         dialog.exec_()  # Properly call exec_ on the instance
         
     def generare_machete(self):
-        xls1_params = {
-            'linie': self.get_layer_path('LINIE_JT'),
-            'stalp_xml_': self.get_layer_path('STALP_XML_'),
-            'tronson_aranjat_': self.get_layer_path('TRONSON_predare_xml'),
-            'tronson_xml_': self.get_layer_path('TRONSON_XML_'),
-            'aux_tr': self.helper.create_valid_output(self.base_dir, "AUX_tr.gpkg", "machete"),
-            'linie_macheta': self.helper.create_valid_output(self.base_dir, "LINIE_MACHETA.gpkg", "machete"),
-            'stalpi_macheta': self.helper.create_valid_output(self.base_dir, "STALPI MACHETA.gpkg", "machete"),
-            'tronson_macheta': self.helper.create_valid_output(self.base_dir, "TRONSON MACHETA.gpkg", "machete")
-        }
-        
-        xls2_params = {
-            'bransament_xml_': self.get_layer_path('BRANSAMENT_XML_'),
-            'deschideri_xml': self.get_layer_path('DESCHIDERI_XML_'),
-            'firida_xml_': self.get_layer_path('FIRIDA_XML_'),
-            'grup_masura_xml_': self.get_layer_path('GRUP_MASURA_XML_'),
-            'linia_jt': self.get_layer_path('LINIE_JT'),
-            'firida_macheta': self.helper.create_valid_output(self.base_dir, "FIRIDA MACHETA.gpkg", "machete"),
-            'grup_masura_macheta': self.helper.create_valid_output(self.base_dir, "GRUP MASURA MACHETA.gpkg", "machete"),
-            'deschideri_macheta': self.helper.create_valid_output(self.base_dir, "DESCHIDERI MACHETA.gpkg", "machete"),
-            'bransamente_macheta': self.helper.create_valid_output(self.base_dir, "BRANSAMENTE MACHETA.gpkg", "machete")
-        }
-        
-        try:
+        try: 
+            xls1_params = {
+                'linie': self.get_layer_by_name('LINIE_JT'),
+                'stalp_xml_': self.get_layer_by_name('STALP_XML_'),
+                'tronson_aranjat_': self.get_layer_by_name('TRONSON_predare_xml'),
+                'tronson_xml_': self.get_layer_by_name('TRONSON_XML_'),
+                'aux_tr': self.helper.create_valid_output(self.base_dir, "AUX_tr.gpkg", "machete"),
+                'linie_macheta': self.helper.create_valid_output(self.base_dir, "LINIE_MACHETA.gpkg", "machete"),
+                'stalpi_macheta': self.helper.create_valid_output(self.base_dir, "STALPI MACHETA.gpkg", "machete"),
+                'tronson_macheta': self.helper.create_valid_output(self.base_dir, "TRONSON MACHETA.gpkg", "machete")
+            }
+
+            # Run XLS_1 model
             processing.run('model:005 GENERARE MACHETE XLS_1', xls1_params)
+
+            # Add resulting layers to project
             self.helper.add_layer_to_project(xls1_params['aux_tr'])
             self.helper.add_layer_to_project(xls1_params['linie_macheta'])
             self.helper.add_layer_to_project(xls1_params['stalpi_macheta'])
             self.helper.add_layer_to_project(xls1_params['tronson_macheta'])
+
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "XLS_1 Model Error", f"An error occurred: {str(e)}")
-    
-        try: 
+            return  # Stop execution if XLS_1 fails
+
+        try:
+            xls2_params = {
+                'bransament_xml_': self.get_layer_by_name('BRANSAMENT_XML_'),
+                'deschideri_xml': self.get_layer_by_name('DESCHIDERI_XML_'),
+                'firida_xml_': self.get_layer_by_name('FIRIDA_XML_'),
+                'grup_masura_xml_': self.get_layer_by_name('GRUP_MASURA_XML_'),
+                'linia_jt': self.get_layer_by_name('LINIE_JT'),
+                'firida_macheta': self.helper.create_valid_output(self.base_dir, "FIRIDA MACHETA.gpkg", "machete"),
+                'grup_masura_macheta': self.helper.create_valid_output(self.base_dir, "GRUP MASURA MACHETA.gpkg", "machete"),
+                'deschideri_macheta': self.helper.create_valid_output(self.base_dir, "DESCHIDERI MACHETA.gpkg", "machete"),
+                'bransamente_macheta': self.helper.create_valid_output(self.base_dir, "BRANSAMENTE MACHETA.gpkg", "machete")
+            }
+
+            # Run XLS_2 model
             processing.run('model:006 GENERARE MACHETE XLS_2', xls2_params)
+
+            # Add resulting layers to project
             self.helper.add_layer_to_project(xls2_params['firida_macheta'])
             self.helper.add_layer_to_project(xls2_params['grup_masura_macheta'])
             self.helper.add_layer_to_project(xls2_params['deschideri_macheta'])
             self.helper.add_layer_to_project(xls2_params['bransamente_macheta'])
+
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "XLS_2 Model Error", f"An error occurred: {str(e)}")
-            
-        QMessageBox.information(self.iface.mainWindow(), "Model Completed", "Generare Machete models finished successfully!")
         
+        QMessageBox.information(self.iface.mainWindow(), "Model Completed", "Generare Machete models finished successfully!")    
     def process_layers(self, layers):
         if not self.processor:
             try:
