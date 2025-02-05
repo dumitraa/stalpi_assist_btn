@@ -538,28 +538,29 @@ class StalpiAssist:
                         )
                 else:
                     raise TypeError(f"Unexpected output type for {key} from processing.run")
-
-            # Retrieve the SCR_DWG layer for .scr file export
-            scr_dwg_path = os.path.join(self.base_dir, "SCR_DWG.gpkg")
-            scr_dwg_layer = QgsVectorLayer(scr_dwg_path, "SCR_DWG", "ogr")
-            
-            if not scr_dwg_layer.isValid():
-                raise Exception("Failed to load the SCR_DWG layer.")
-
-            # Extract SCR_STLP column data
-            scr_stlp_data = [feature["SCR_STLP"] for feature in scr_dwg_layer.getFeatures() if "SCR_STLP" in feature]
-
-            # Write to a .scr file in the "temp" subdirectory
-            scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")
-
-            with open(scr_file_path, "w") as scr_file:
-                for line in scr_stlp_data:
-                    scr_file.write(f"{line}\n")
-
-            QMessageBox.information(self.iface.mainWindow(), "Export Completed", f"SCR_STLP data exported to {scr_file_path} successfully!")
-
+                
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+
+        # Retrieve the SCR_DWG layer for .scr file export
+        scr_dwg_layer = QgsProject.instance().mapLayersByName("SCR_DWG")[0]
+        
+        if not scr_dwg_layer.isValid():
+            raise Exception("Failed to load the SCR_DWG layer.")
+        
+        # Extract SCR_STLP column data
+        scr_stlp_data = [
+            feature["SCR_STLP"] for feature in scr_dwg_layer.getFeatures() 
+            if feature.isValid() and feature["SCR_STLP"] not in [None,"NULL", "nan", ""]
+]
+        # Write to a .scr file in the "temp" subdirectory
+        scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")
+
+        with open(scr_file_path, "w") as scr_file:
+            for line in scr_stlp_data:
+                scr_file.write(f"{line}\n")
+
+        QMessageBox.information(self.iface.mainWindow(), "Export Completed", f"SCR_STLP data exported to {scr_file_path} successfully!")
 
     def run_tronsoane_duble_model(self):
         """Run TRONSOANE DUBLE ACTUALIZARE model with a scratch layer and saved copy."""
@@ -672,6 +673,8 @@ class StalpiAssist:
             QMessageBox.critical(self.iface.mainWindow(), "XLS_2 Model Error", f"An error occurred: {str(e)}")
         
         QMessageBox.information(self.iface.mainWindow(), "Model Completed", "Generare Machete models finished successfully!")    
+        
+        
     def process_layers(self, layers):
         if not self.processor:
             try:
