@@ -42,6 +42,21 @@ from qgis.core import ( # type: ignore
     register_function
 )
 
+import os
+import random
+from qgis.core import (
+    QgsProcessing,
+    QgsVectorLayer,
+    QgsProject,
+    QgsVectorFileWriter,
+    QgsCoordinateTransformContext,
+    QgsCategorizedSymbolRenderer,
+    QgsRendererCategory,
+    QgsSymbol
+)
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtGui import QColor
+
 import processing  # type: ignore
 
 import os
@@ -342,7 +357,8 @@ class StalpiAssist:
                 
             self.feedback = QgsProcessingFeedback()
             self.context.setProject(QgsProject.instance())
-            
+
+
     def run_tronson_model(self):
         params = {
             "linie_jt_introduse": self.get_layer_path("LINIE_JT"),
@@ -362,7 +378,7 @@ class StalpiAssist:
                 save_path = os.path.join(self.base_dir, "TRONSON_XML_.gpkg")
 
                 options = QgsVectorFileWriter.SaveVectorOptions()
-                options.driverName = "GPKG"  # Saves as a GeoPackage
+                options.driverName = "GPKG"
                 options.fileEncoding = "UTF-8"
 
                 error = QgsVectorFileWriter.writeAsVectorFormatV3(scratch_layer, save_path, QgsCoordinateTransformContext(), options)
@@ -371,6 +387,31 @@ class StalpiAssist:
                     QMessageBox.information(self.iface.mainWindow(), "Success", f"Layer saved successfully at {save_path}")
                 else:
                     QMessageBox.critical(self.iface.mainWindow(), "Save Error", f"Failed to save layer: {error}")
+
+                # Apply categorization by "ID_LOC" using a predefined set of bright, distinguishable colors
+                field_name = "ID_LOC"
+                unique_values = scratch_layer.uniqueValues(scratch_layer.fields().lookupField(field_name))
+                categories = []
+                
+                predefined_colors = [
+                    QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255),
+                    QColor(255, 255, 0), QColor(255, 165, 0), QColor(255, 20, 147),
+                    QColor(0, 255, 255), QColor(128, 0, 128), QColor(0, 128, 0),
+                    QColor(0, 0, 128), QColor(75, 0, 130), QColor(255, 105, 180)
+                ]
+                random.shuffle(predefined_colors)
+                
+                for i, value in enumerate(unique_values):
+                    if i >= len(predefined_colors):
+                        break
+                    symbol = QgsSymbol.defaultSymbol(scratch_layer.geometryType())
+                    symbol.setColor(predefined_colors[i])
+                    symbol.setWidth(1.25)
+                    categories.append(QgsRendererCategory(value, symbol, str(value)))
+                
+                renderer = QgsCategorizedSymbolRenderer(field_name, categories)
+                scratch_layer.setRenderer(renderer)
+                scratch_layer.triggerRepaint()
 
             else:
                 raise TypeError("Unexpected output type from processing.run")
