@@ -373,6 +373,7 @@ class StalpiAssist:
             scratch_layer = result["tronson_xml_"]
 
             if isinstance(scratch_layer, QgsVectorLayer):
+                # Save TRONSON_XML_
                 scratch_layer.setName("TRONSON_XML_")
                 QgsProject.instance().addMapLayer(scratch_layer)
                 save_path = os.path.join(self.base_dir, "TRONSON_XML_.gpkg")
@@ -381,14 +382,21 @@ class StalpiAssist:
                 options.driverName = "GPKG"
                 options.fileEncoding = "UTF-8"
 
-                error = QgsVectorFileWriter.writeAsVectorFormatV3(scratch_layer, save_path, QgsCoordinateTransformContext(), options)
+                error = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    scratch_layer, save_path, QgsCoordinateTransformContext(), options
+                )
 
                 if error[0] == QgsVectorFileWriter.NoError:
                     QMessageBox.information(self.iface.mainWindow(), "Success", f"Layer saved successfully at {save_path}")
                 else:
                     QMessageBox.critical(self.iface.mainWindow(), "Save Error", f"Failed to save layer: {error}")
 
-                # Apply categorization by "ID_LOC" using a predefined set of bright, distinguishable colors
+                # Duplicate the output layer as NO_OFFSET_TRONSON_XML_
+                no_offset_layer = scratch_layer.clone()
+                no_offset_layer.setName("NO_OFFSET_TRONSON_XML_")
+                QgsProject.instance().addMapLayer(no_offset_layer)
+
+                # Apply categorization by "ID_LOC" only to TRONSON_XML_
                 field_name = "ID_LOC"
                 unique_values = scratch_layer.uniqueValues(scratch_layer.fields().lookupField(field_name))
                 categories = []
@@ -420,6 +428,7 @@ class StalpiAssist:
 
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+
             
 
     def run_brans_model(self):
@@ -668,6 +677,7 @@ class StalpiAssist:
                 'stalp_xml_': self.get_layer_by_name('STALP_XML_'),
                 'tronson_aranjat_': self.get_layer_by_name('TRONSON_predare_xml'),
                 'tronson_xml_': self.get_layer_by_name('TRONSON_XML_'),
+                'tronson_before_offset': self.get_layer_by_name('NO_OFFSET_TRONSON_XML_'),
                 'aux_tr': self.helper.create_valid_output(self.base_dir, "AUX_tr.gpkg", "machete"),
                 'linie_macheta': self.helper.create_valid_output(self.base_dir, "LINIE_MACHETA.gpkg", "machete"),
                 'stalpi_macheta': self.helper.create_valid_output(self.base_dir, "STALPI MACHETA.gpkg", "machete"),
