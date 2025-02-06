@@ -557,8 +557,7 @@ class StalpiAssist:
         scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")
 
         with open(scr_file_path, "w") as scr_file:
-            for line in scr_stlp_data:
-                scr_file.write(f"{line}\n")
+            scr_file.write("\n".join(scr_stlp_data))  # Join with newline without extra at the end
 
         QMessageBox.information(self.iface.mainWindow(), "Export Completed", f"SCR_STLP data exported to {scr_file_path} successfully!")
 
