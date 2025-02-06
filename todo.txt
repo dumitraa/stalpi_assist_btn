@@ -1,0 +1,5 @@
+- export dwg and kmz - firida macheta, bransamente macheta, stalpi macheta, tronson macheta 
+    > dwg - add size 50, colors 
+    > kml - color and pin ? 
+- auto-add grid geoid to project
+- auto register wbk 4 decimals
