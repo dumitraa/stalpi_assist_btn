@@ -239,8 +239,8 @@ class StalpiAssist:
                 enabled_flag=False
             ),
             self.add_action(
-                "Generare Excel + XML",
-                text=self.tr(u'Generare Excel + XML'),
+                "Generare XML",
+                text=self.tr(u'Generare XML'),
                 callback=self.generate_xml,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/xml.png')),
