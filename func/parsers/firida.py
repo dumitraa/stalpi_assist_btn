@@ -211,6 +211,15 @@ class IgeaFiridaParser:
                 for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                     col_idx = existing_headers.get(header, col_idx)  # Fallback to index
                     sheet.cell(row=row_idx, column=col_idx, value=cell_value)
+                    
+            for col_idx in range(1, sheet.max_column + 1):
+                cell = sheet.cell(row=header_row, column=col_idx)
+                if cell.value == "Nr circuite":
+                    QgsMessageLog.logMessage(f"Found header in cell {cell.coordinate}: {cell.value}", "StalpiAssist", level=Qgis.Warning)
+                    cell.value = "Nr circuite "
+                    break
+                else:
+                    QgsMessageLog.logMessage(f"No match in cell {cell.coordinate}: {cell.value}.", "StalpiAssist", level=Qgis.Warning)
 
         try:
             workbook.save(excel_file)

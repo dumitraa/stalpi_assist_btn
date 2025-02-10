@@ -184,6 +184,13 @@ class GenerateXMLWorker(QThread):
                     if str(xml_template_path).endswith("stalp.xml") and field.name() == "NR_CIR":
                         if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
                             field_value = f"{field_value} circuite"
+                    if str(xml_template_path).endswith("stalp.xml") and field.name() == "TIP_MAT":
+                        if feature["DESC_CTG_MT_JT"] in ["SV 10001", "SV 10002"]:
+                            field_value = "Beton"
+                        elif "St. metalic" in feature["DESC_CTG_MT_JT"]:
+                            field_value = "Metal"
+                        elif "St. lemn" in feature["DESC_CTG_MT_JT"]:
+                            field_value = "Lemn"
                     child_element = ET.SubElement(new_element, field.name())
                     if field_value not in [None, "None", "NULL", "nan"]:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

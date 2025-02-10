@@ -23,39 +23,36 @@
 """
 from pathlib import Path
 
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication  # type: ignore
-from qgis.PyQt.QtGui import QIcon  # type: ignore
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QMessageBox  # type: ignore
-
-from qgis.core import ( # type: ignore
-    QgsMessageLog, 
-    QgsProcessingFeedback, 
-    Qgis, 
-    QgsProcessingContext, 
-    QgsProject, 
-    QgsVectorLayer, 
-    QgsProcessing, 
-    QgsGeometry, 
-    QgsWkbTypes, 
-    QgsVectorFileWriter, 
-    QgsCoordinateTransformContext, 
-    register_function
-)
-
 import os
 import random
-from qgis.core import (
-    QgsProcessing,
-    QgsVectorLayer,
+
+from PyQt5.QtGui import QColor # type: ignore
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QAction # type: ignore 
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication # type: ignore
+from qgis.PyQt.QtGui import QIcon  # type: ignore
+from qgis.core import ( # type: ignore
+    QgsMessageLog,
+    QgsProcessingFeedback,
+    Qgis,
+    QgsProcessingContext,
     QgsProject,
+    QgsVectorLayer,
+    QgsProcessing,
+    QgsGeometry,
+    QgsWkbTypes,
     QgsVectorFileWriter,
     QgsCoordinateTransformContext,
-    QgsCategorizedSymbolRenderer,
+    register_function,
+    QgsSymbol,
     QgsRendererCategory,
-    QgsSymbol
+    QgsCategorizedSymbolRenderer,
+    QgsSingleSymbolRenderer,
+    QgsVectorLayerSimpleLabeling,
+    QgsPalLayerSettings,
+    QgsTextFormat,
+    QgsTextBufferSettings,
 )
-from PyQt5.QtWidgets import QMessageBox
-from PyQt5.QtGui import QColor
+
 
 import processing  # type: ignore
 
@@ -261,6 +258,14 @@ class StalpiAssist:
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/anexa.png')),
                 enabled_flag=False
+            ),
+            self.add_action(
+                "Export DXF + KML",
+                text=self.tr(u'Export DXF + KML'),
+                callback=self.export_dxf_kml,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/export.png')),
+                enabled_flag=False
             )
         ]
         
@@ -357,6 +362,7 @@ class StalpiAssist:
                 
             self.feedback = QgsProcessingFeedback()
             self.context.setProject(QgsProject.instance())
+            self.exporter = QGISExporter(self.base_dir)
 
 
     def run_tronson_model(self):
@@ -723,7 +729,10 @@ class StalpiAssist:
             QMessageBox.critical(self.iface.mainWindow(), "XLS_2 Model Error", f"An error occurred: {str(e)}")
         
         QMessageBox.information(self.iface.mainWindow(), "Model Completed", "Generare Machete models finished successfully!")    
-        
+
+    def export_dxf_kml(self):
+        self.exporter.export_dxf_kml()
+        QMessageBox.information(self.iface.mainWindow(), "Export Completed", "DXF and KML files exported successfully!")
         
     def process_layers(self, layers):
         if not self.processor:
@@ -746,3 +755,127 @@ class StalpiAssist:
                 return
         else:
             return
+
+
+class QGISExporter:
+    def __init__(self, output_folder):
+        self.output_folder = output_folder
+        self.layers_to_export = [
+            "FIRIDA MACHETA",
+            "BRANSAMENTE MACHETA",
+            "STALPI MACHETA",
+            "TRONSON MACHETA"
+        ]
+        self.colors = {
+            "FIRIDA MACHETA": QColor("#ff0000"),  # Red
+            "BRANSAMENTE MACHETA": QColor("#00ff00"),  # Green
+            "STALPI MACHETA": QColor("#0000ff"),  # Blue
+            "TRONSON MACHETA": QColor("#ff00ff")  # Magenta
+        }
+
+    def stylize_layer(self, layer):
+        """Applies basic symbology and labeling."""
+        if not layer:
+            return
+
+        color = self.colors.get(layer.name(), QColor("#000000"))
+        
+        # Set unique color
+        renderer = layer.renderer()
+        symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+        symbol.setColor(color)
+        renderer.setSymbol(symbol)
+
+        # Label settings
+        settings = QgsPalLayerSettings()
+        settings.fieldName = "Descrierea BDI"
+        settings.enabled = True
+        settings.textFormat = QgsTextFormat()
+        settings.textFormat.setSize(50)
+        settings.textFormat.setColor(color)
+
+        # Text buffer
+        buffer_settings = QgsTextBufferSettings()
+        buffer_settings.setEnabled(True)
+        buffer_settings.setSize(1)
+        buffer_settings.setColor(QColor("white"))
+        settings.textFormat.setBuffer(buffer_settings)
+
+        # Apply labeling
+        layer.setLabeling(QgsVectorLayerSimpleLabeling(settings))
+        layer.triggerRepaint()
+
+    def export_dxf(self):
+        """Exports layers to a single DXF file."""
+        dxf_path = os.path.join(self.output_folder, "export.dxf")
+        transform_context = QgsProject.instance().transformContext()
+        
+        options = QgsVectorFileWriter.SaveVectorOptions()
+        options.driverName = "DXF"
+        options.fileEncoding = "UTF-8"
+        options.forceSingleOutputFile = True
+
+        first_layer = True
+
+        for layer_name in self.layers_to_export:
+            layers = QgsProject.instance().mapLayersByName(layer_name)
+            if not layers:
+                continue
+            layer = layers[0]
+
+            self.stylize_layer(layer)
+
+            error, newFilename, newLayer, errorMessage = QgsVectorFileWriter.writeAsVectorFormatV3(
+                layer,
+                dxf_path if first_layer else None,
+                transform_context,
+                options
+            )
+
+            if error != QgsVectorFileWriter.NoError:
+                print(f"Error exporting {layer_name} to DXF: {errorMessage}")
+
+            first_layer = False
+
+        print(f"DXF exported to: {dxf_path}")
+
+    def export_kml(self):
+        """Exports each layer as a separate KML file with colors."""
+        for layer_name in self.layers_to_export:
+            layers = QgsProject.instance().mapLayersByName(layer_name)
+            if not layers:
+                continue
+            layer = layers[0]
+
+            kml_path = os.path.join(self.output_folder, f"{layer_name}.kml")
+            transform_context = QgsProject.instance().transformContext()
+            options = QgsVectorFileWriter.SaveVectorOptions()
+            options.driverName = "KML"
+            options.fileEncoding = "UTF-8"
+
+            # Create a symbol with the desired color
+            color = self.colors.get(layer_name, QColor("#000000"))
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            symbol.setColor(color)
+
+            # Apply the symbol using a single symbol renderer
+            renderer = QgsSingleSymbolRenderer(symbol)
+            layer.setRenderer(renderer)
+
+            # Export to KML
+            error, newFilename, newLayer, errorMessage = QgsVectorFileWriter.writeAsVectorFormatV3(
+                layer,
+                kml_path,
+                transform_context,
+                options
+            )
+
+            if error != QgsVectorFileWriter.NoError:
+                print(f"Error exporting {layer_name} to KML: {errorMessage}")
+            else:
+                print(f"KML exported: {kml_path}")
+
+    def export_dxf_kml(self):
+        """Runs both DXF and KML exports."""
+        self.export_dxf()
+        self.export_kml()

@@ -105,7 +105,7 @@ class IgeaStalpParser:
             "Tip strada": "tip_str",
             "Strada": "str",
             "Tip circuit": "tip_cir",
-            "Tip material": "tip_mat",
+            "Tip material": lambda st: "Beton" if st.desc_ctg_mt_jt in ["SV 10001", "SV 10002"] else "Metal" if "St. metalic" in st.desc_ctg_mt_jt else "Lemn" if "St. lemn" in st.desc_ctg_mt_jt else st.tip_mat,
             "Descriere catalog MT, JT": "desc_ctg_mt_jt",
             "Numar circuite": lambda st: (f"{st.nr_cir} circuite" if int(st.nr_cir) > 2 else int(st.nr_cir)) if st.nr_cir and str(st.nr_cir).isdigit() else st.nr_cir,
             "Defecte stalp": lambda st: "", # ?
@@ -299,4 +299,14 @@ class IgeaStalpParser:
                 if header.strip() in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header.strip()], value=cell_value if cell_value is not None else "")
         
+        for col_idx in range(1, sheet.max_column + 1):
+            cell = sheet.cell(row=header_row, column=col_idx)
+            if cell.value == "Echipamente comunicatii":
+                QgsMessageLog.logMessage(f"Found header in cell {cell.coordinate}: {cell.value}", "StalpiAssist", level=Qgis.Warning)
+                cell.value = "Echipamente comunicatii "
+                break
+            else:
+                QgsMessageLog.logMessage(f"No match in cell {cell.coordinate}: {cell.value}.", "StalpiAssist", level=Qgis.Warning)
+
         workbook.save(excel_file)
+
