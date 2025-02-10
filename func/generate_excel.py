@@ -23,7 +23,7 @@ class GenerateExcelDialog(QDialog):
         self.progress_bar = QProgressBar(self)
         self.layout.addWidget(self.progress_bar)
 
-        self.run_button = QPushButton("Generate Excel Files", self)
+        self.run_button = QPushButton("Generate Excel File", self)
         self.run_button.clicked.connect(self.__exec__)
         self.layout.addWidget(self.run_button)
 

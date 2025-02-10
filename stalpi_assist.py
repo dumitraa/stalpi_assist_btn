@@ -260,9 +260,9 @@ class StalpiAssist:
                 enabled_flag=False
             ),
             self.add_action(
-                "Export DXF + KML",
-                text=self.tr(u'Export DXF + KML'),
-                callback=self.export_dxf_kml,
+                "Export DWG + KMZ",
+                text=self.tr(u'Export DWG + KMZ'),
+                callback=self.export_dwg_kmz,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/export.png')),
                 enabled_flag=False
@@ -353,16 +353,33 @@ class StalpiAssist:
         """Set base directory and update icons."""
         base_dir = QFileDialog.getExistingDirectory(None, "Select Base Directory", "")
         if base_dir:
-            self.base_dir = base_dir  # Set the base directory here directly
-            # Update the icon for Fisier Destinatie to complete.png
+            self.base_dir = base_dir
+            
             self.fisier_destinatie_action.setIcon(QIcon(str(self.plugin_path('icons/complete.png'))))
-            # Enable all other actions
+            
             for action in self.actions_to_enable:
                 action.setEnabled(True)
                 
             self.feedback = QgsProcessingFeedback()
             self.context.setProject(QgsProject.instance())
             self.exporter = QGISExporter(self.base_dir)
+            
+            existing_layer = QgsProject.instance().mapLayersByName("GRID_GEOID")
+            
+            if not existing_layer:
+                template_file = self.plugin_path('func', 'templates', 'GRID_GEOID.gpkg')
+                layer = QgsVectorLayer(f"{template_file}|layername=GRID_GEOID", "GRID_GEOID", "ogr")
+                
+                if layer.isValid():
+                    QgsProject.instance().addMapLayer(layer)
+                    
+                    root = QgsProject.instance().layerTreeRoot()
+                    layer_node = root.findLayer(layer.id())
+                    if layer_node:
+                        layer_node.setItemVisibilityChecked(False)
+                else:
+                    print("Failed to load GRID_GEOID layer.")
+
 
 
     def run_tronson_model(self):
@@ -730,8 +747,8 @@ class StalpiAssist:
         
         QMessageBox.information(self.iface.mainWindow(), "Model Completed", "Generare Machete models finished successfully!")    
 
-    def export_dxf_kml(self):
-        self.exporter.export_dxf_kml()
+    def export_dwg_kmz(self):
+        self.exporter.export_dwg_kmz()
         QMessageBox.information(self.iface.mainWindow(), "Export Completed", "DXF and KML files exported successfully!")
         
     def process_layers(self, layers):
@@ -774,24 +791,24 @@ class QGISExporter:
         }
 
     def stylize_layer(self, layer):
-        """Applies basic symbology and labeling."""
+        """Applies symbology and labeling."""
         if not layer:
             return
 
         color = self.colors.get(layer.name(), QColor("#000000"))
         
         # Set unique color
-        renderer = layer.renderer()
         symbol = QgsSymbol.defaultSymbol(layer.geometryType())
         symbol.setColor(color)
-        renderer.setSymbol(symbol)
+        renderer = QgsSingleSymbolRenderer(symbol)
+        layer.setRenderer(renderer)
 
         # Label settings
         settings = QgsPalLayerSettings()
         settings.fieldName = "Descrierea BDI"
         settings.enabled = True
         settings.textFormat = QgsTextFormat()
-        settings.textFormat.setSize(50)
+        settings.textFormat.setSize(10)
         settings.textFormat.setColor(color)
 
         # Text buffer
@@ -805,13 +822,13 @@ class QGISExporter:
         layer.setLabeling(QgsVectorLayerSimpleLabeling(settings))
         layer.triggerRepaint()
 
-    def export_dxf(self):
-        """Exports layers to a single DXF file."""
-        dxf_path = os.path.join(self.output_folder, "export.dxf")
+    def export_dwg(self):
+        """Exports layers to a single DWG file."""
+        dwg_path = os.path.join(self.output_folder, "export.dwg")
         transform_context = QgsProject.instance().transformContext()
         
         options = QgsVectorFileWriter.SaveVectorOptions()
-        options.driverName = "DXF"
+        options.driverName = "DWG"
         options.fileEncoding = "UTF-8"
         options.forceSingleOutputFile = True
 
@@ -827,55 +844,58 @@ class QGISExporter:
 
             error, newFilename, newLayer, errorMessage = QgsVectorFileWriter.writeAsVectorFormatV3(
                 layer,
-                dxf_path if first_layer else None,
+                dwg_path if first_layer else None,
                 transform_context,
                 options
             )
 
             if error != QgsVectorFileWriter.NoError:
-                print(f"Error exporting {layer_name} to DXF: {errorMessage}")
+                print(f"Error exporting {layer_name} to DWG: {errorMessage}")
 
             first_layer = False
 
-        print(f"DXF exported to: {dxf_path}")
+        print(f"DWG exported to: {dwg_path}")
 
-    def export_kml(self):
-        """Exports each layer as a separate KML file with colors."""
+    def export_kmz(self):
+        """Exports layers to a single KMZ file with specific styling."""
+        kmz_path = os.path.join(self.output_folder, "export.kmz")
+        transform_context = QgsProject.instance().transformContext()
+        options = QgsVectorFileWriter.SaveVectorOptions()
+        options.driverName = "KML"
+        options.fileEncoding = "UTF-8"
+        options.forceSingleOutputFile = True
+
+        first_layer = True
+        
         for layer_name in self.layers_to_export:
             layers = QgsProject.instance().mapLayersByName(layer_name)
             if not layers:
                 continue
             layer = layers[0]
 
-            kml_path = os.path.join(self.output_folder, f"{layer_name}.kml")
-            transform_context = QgsProject.instance().transformContext()
-            options = QgsVectorFileWriter.SaveVectorOptions()
-            options.driverName = "KML"
-            options.fileEncoding = "UTF-8"
-
-            # Create a symbol with the desired color
+            # Apply a different styling for KMZ
             color = self.colors.get(layer_name, QColor("#000000"))
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
             symbol.setColor(color)
-
-            # Apply the symbol using a single symbol renderer
             renderer = QgsSingleSymbolRenderer(symbol)
             layer.setRenderer(renderer)
 
-            # Export to KML
+            # Export to KMZ
             error, newFilename, newLayer, errorMessage = QgsVectorFileWriter.writeAsVectorFormatV3(
                 layer,
-                kml_path,
+                kmz_path if first_layer else None,
                 transform_context,
                 options
             )
 
             if error != QgsVectorFileWriter.NoError:
-                print(f"Error exporting {layer_name} to KML: {errorMessage}")
+                print(f"Error exporting {layer_name} to KMZ: {errorMessage}")
             else:
-                print(f"KML exported: {kml_path}")
+                print(f"KMZ exported: {kmz_path}")
 
-    def export_dxf_kml(self):
-        """Runs both DXF and KML exports."""
-        self.export_dxf()
-        self.export_kml()
+            first_layer = False
+
+    def export_dwg_kmz(self):
+        """Runs both DWG and KMZ exports."""
+        self.export_dwg()
+        self.export_kmz()
