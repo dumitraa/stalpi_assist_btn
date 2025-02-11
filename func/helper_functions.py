@@ -60,8 +60,6 @@ class HelperBase:
                         worksheet.write(row_idx, col_idx, value)
             
             workbook.close()
-            
-            print(f"Generated files for layer '{layer_name}':")
 
     # Create valid path and subdirectories if needed
     def create_valid_output(self, main_dir, filename, subdir=None):
