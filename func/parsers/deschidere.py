@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject, QgsFeatureRequest # type: ignore
 from ..helper_functions import HelperBase
+import config
 
 
 class DeschidereJT:
@@ -153,14 +154,14 @@ class IgeaDeschidereParser:
         
         sorted_ds = sorted(
             self.deschideri,
-            key=lambda ds: ds.nr_crt if ds.nr_crt not in [None, "None", "NULL", "nan"] else float("inf")
+            key=lambda ds: ds.nr_crt if ds.nr_crt not in config.NULL_VALUES else float("inf")
         )
         for deschidere in sorted_ds:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
                 value = self.resolve_mapping(deschidere, mapping)
-                value = "" if value in ["NULL", "None", None, "nan"] else value
+                value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
         
@@ -202,9 +203,8 @@ class IgeaDeschidereParser:
             QgsMessageLog.logMessage(f"Feature with Nr.crt {fid} not found!", "StalpiAssist", level=Qgis.Critical)
             return {"id_loc": "", "locatia": ""}
 
-        # Extract fields with fallback for None, "NULL", or "nan"
         def clean_value(value):
-            return "" if value in [None, "None", "NULL", "nan"] else str(value)
+            return "" if value in config.NULL_VALUES else str(value)
 
         id_loc = clean_value(feature["ID_Locatia"])
         locatia = clean_value(feature["Locatia"])

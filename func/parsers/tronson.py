@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
+import config
 
 class TronsonJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, nr_crt_loc, 
@@ -133,7 +134,7 @@ class IgeaTronsonParser:
         
         sorted_tr = sorted(
             self.tronsoane,
-            key=lambda tr: tr.nr_crt if tr.nr_crt not in [None, "NULL", "nan"] else float("inf")
+            key=lambda tr: tr.nr_crt if tr.nr_crt not in config.NULL_VALUES else float("inf")
         )
         for tronson in sorted_tr:
             row = []
@@ -141,7 +142,7 @@ class IgeaTronsonParser:
                 mapping = self.mapping.get(header)
                 value = self.resolve_mapping(tronson, mapping)
                 # Replace None or invalid values with an empty string
-                value = "" if value in ["NULL", None, "nan"] else value
+                value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
         

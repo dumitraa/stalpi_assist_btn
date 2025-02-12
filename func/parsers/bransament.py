@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject  # type: ignore
+import config
 
 
 class BransamentJT():
@@ -122,14 +123,14 @@ class IgeaBransamentParser:
         headers = list(self.mapping.keys())
         sorted_br = sorted(
             self.bransamente,
-            key=lambda br: br.nr_crt if br.nr_crt not in [None, "None", "NULL", "nan"] else float("inf")
+            key=lambda br: br.nr_crt if br.nr_crt not in config.NULL_VALUES else float("inf")
         )
         for bransament in sorted_br:
             row = []
             for header in headers:
                 mapping = self.mapping[header]
                 value = self.resolve_mapping(bransament, mapping)
-                value = "" if value in ["NULL", "None", None, "nan"] else value
+                value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
 

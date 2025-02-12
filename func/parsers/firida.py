@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 import pandas as pd
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
+import config
 
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
@@ -163,14 +164,14 @@ class IgeaFiridaParser:
         # Collect data rows
         sorted_fr = sorted(
             self.firide,
-            key=lambda fr: fr.nr_crt if fr.nr_crt not in [None, "NULL", "nan"] else float("inf")
+            key=lambda fr: fr.nr_crt if fr.nr_crt not in config.NULL_VALUES else float("inf")
         )
         for firida in sorted_fr:
             row = []
             for header in headers:
                 mapping = self.mapping[header]
                 value = self.resolve_mapping(firida, mapping)
-                value = "" if value in ["NULL", "None", None, "nan"] else value
+                value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
 

@@ -1,5 +1,6 @@
 from typing import List
 from openpyxl import load_workbook
+import config
 
 
 class LinieJT:
@@ -33,7 +34,7 @@ class IgeaLinieParser:
             "ID": "id_bdi",
             "Denumire": lambda ln: "",
             "Descrierea BDI": "denum",
-            "Proprietar": lambda ln: ln.prop if ln.prop not in [None, "NULL", "nan"] else "DEER",
+            "Proprietar": lambda ln: ln.prop if ln.prop not in config.NULL_VALUES else "DEER",
             "Locatia": "id_loc",
             "Descrierea instalatiei superioare": lambda ln: "",
             "Nivel tensiune (kV)": "niv_ten",
@@ -96,7 +97,7 @@ class IgeaLinieParser:
             for header in headers:
                 mapping = self.mapping.get(header)
                 value = self.resolve_mapping(linie, mapping)
-                value = "" if value in ["NULL", "None", None, "nan"] else value
+                value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
         
