@@ -1,7 +1,6 @@
 from typing import List
 from openpyxl import load_workbook
-import config
-
+from ... import config
 
 class LinieJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, class_id_inst_sup, id_inst_sup, cod_ad_energ, niv_ten, tip_lin, an_pif_init, nr_iv):

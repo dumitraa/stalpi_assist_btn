@@ -23,7 +23,7 @@
 """
 from pathlib import Path
 
-import config
+from . import config
 
 import os
 import random
@@ -623,7 +623,7 @@ class StalpiAssist:
         # Extract SCR_STLP column data
         scr_stlp_data = [
             feature["SCR_STLP"] for feature in scr_dwg_layer.getFeatures() 
-            if feature.isValid() and feature["SCR_STLP"] not in config.NULL_VALUES
+            if feature.isValid() and feature["SCR_STLP"] not in config.config.NULL_VALUES
 ]
         # Write to a .scr file in the "temp" subdirectory
         scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")

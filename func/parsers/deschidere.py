@@ -2,8 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject, QgsFeatureRequest # type: ignore
 from ..helper_functions import HelperBase
-import config
-
+from ... import config
 
 class DeschidereJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, ip_stp_inc, nr_crt_stp_inc, id_stp_term, nr_crt_stp_term, id_tr_jt1, nr_crt_tr_jt1, id_tr_jt2, nr_crt_tr_jt2, id_tr_jt3, nr_crt_tr_jt3, id_tr_jt4, nr_crt_tr_jt4, id_tr_jt5, nr_crt_tr_jt5, id_tr_jt6, nr_crt_tr_jt6, geo, lung, sursa_coord, data_coord, id_loc, locatia):

@@ -2,7 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 import pandas as pd
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
-import config
+from ... import config
 
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 

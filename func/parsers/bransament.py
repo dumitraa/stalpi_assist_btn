@@ -1,7 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject  # type: ignore
-import config
+from ... import config
 
 
 class BransamentJT():

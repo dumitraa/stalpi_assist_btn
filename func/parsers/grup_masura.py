@@ -1,6 +1,6 @@
 from typing import List
 from openpyxl import load_workbook
-import config
+from ... import config
 
 
 class GrupMasuraJT:

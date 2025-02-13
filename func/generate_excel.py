@@ -2,9 +2,6 @@ from pathlib import Path
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QMessageBox # type: ignore
 from qgis.core import QgsProject, QgsMessageLog, Qgis  # type: ignore
 from .helper_functions import HelperBase, SHPProcessor
-import os
-import uuid
-import time
 import shutil
 
 class GenerateExcelDialog(QDialog):

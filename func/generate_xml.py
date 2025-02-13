@@ -7,7 +7,7 @@ from qgis.core import QgsProject, QgsMessageLog, Qgis  # type: ignore
 from PyQt5.QtCore import QThread, pyqtSignal # type: ignore
 from pathlib import Path # type: ignore
 from .helper_functions import HelperBase
-import config
+from .. import config
 
 class GenerateXMLDialog(QDialog):
     
@@ -173,7 +173,7 @@ class GenerateXMLWorker(QThread):
 
             sorted_features = sorted(
                 layer.getFeatures(),
-                key=lambda f: f["NR_CRT"] if f["NR_CRT"] not in config.NULL_VALUES else float("inf")
+                key=lambda f: f["NR_CRT"] if f["NR_CRT"] not in config.config.NULL_VALUES else float("inf")
             )
 
             for feature in sorted_features:
@@ -193,7 +193,7 @@ class GenerateXMLWorker(QThread):
                         elif "St. lemn" in feature["DESC_CTG_MT_JT"]:
                             field_value = "Lemn"
                     child_element = ET.SubElement(new_element, field.name())
-                    if field_value not in config.NULL_VALUES:
+                    if field_value not in config.config.NULL_VALUES:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 parent.append(new_element)
 
@@ -214,7 +214,7 @@ class GenerateXMLWorker(QThread):
                 for field in layer.fields():
                     field_value = feature[field.name()]
                     field_elem = ET.SubElement(feature_elem, field.name())
-                    if field_value not in config.NULL_VALUES:
+                    if field_value not in config.config.NULL_VALUES:
                         field_elem.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
             rough_string = ET.tostring(root, 'utf-8')
