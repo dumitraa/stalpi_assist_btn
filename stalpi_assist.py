@@ -29,7 +29,7 @@ import os
 import random
 
 from PyQt5.QtGui import QColor # type: ignore
-from PyQt5.QtWidgets import QMessageBox, QFileDialog, QAction # type: ignore 
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QAction, QInputDialog # type: ignore 
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QFile # type: ignore
 from qgis.PyQt.QtGui import QIcon  # type: ignore
 from qgis.core import ( # type: ignore
@@ -50,11 +50,9 @@ from qgis.core import ( # type: ignore
     QgsCategorizedSymbolRenderer,
     QgsPalLayerSettings,
     QgsTextFormat,
-    QgsDxfExport, 
-    QgsVectorLayerSimpleLabeling 
+    QgsVectorLayerSimpleLabeling,
+    QgsTextBufferSettings
 )
-
-from PyQt5.QtWidgets import QInputDialog
 
 
 import processing  # type: ignore
@@ -272,8 +270,8 @@ class StalpiAssist:
                 enabled_flag=False
             ),
             self.add_action(
-                "Export DXF + KMZ",
-                text=self.tr(u'Export DXF + KMZ'),
+                "Stilizare Machete",
+                text=self.tr(u'Stilizare Machete'),
                 callback=self.export_dxf_kml,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/export.png')),
@@ -855,47 +853,66 @@ class StalpiAssist:
             return
         
     def export_dxf_kml(self):
-        self.export_dxf()
-        self.export_kml()
+        self.stylize_layers()
     
     
-    def export_dxf(self):
-        output_directory = self.base_dir
-        layers_to_export = [
+    def stylize_layers(self):
+        layers = [
             "FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"
         ]
-
-        colors = [QColor("red"), QColor("blue"), QColor("green"), QColor("orange")]
+        
+        bright_colors = [
+            "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
+            "#FFA500", "#8A2BE2", "#DC143C", "#32CD32"
+        ]
+        
+        random.shuffle(bright_colors)
+        
         project = QgsProject.instance()
-        layers = []
-        text_layers = []
-
-        for i, layer_name in enumerate(layers_to_export):
+        
+        for i, layer_name in enumerate(layers):
             layer = project.mapLayersByName(layer_name)
             if not layer:
-                QgsMessageLog.logMessage(f"Layer '{layer_name}' not found in the project.", "StalpiAssist", level=Qgis.Critical)
+                print(f"Layer '{layer_name}' not found!")
                 continue
+            
             layer = layer[0]
-            layers.append(layer)
-
-            # Apply symbology (assumed to be set in QGIS)
-            layer.triggerRepaint()
-
-            # Set up labeling explicitly for DXF export
-            label_settings = QgsPalLayerSettings()
-            label_settings.fieldName = "Descrierea BDI"
-            label_settings.isExpression = False
-            label_settings.enabled = True
-
+            color = QColor(bright_colors[i % len(bright_colors)]) 
+            
+            settings = QgsPalLayerSettings()
+            settings.fieldName = "Descrierea BDI"
+            settings.enabled = True
+            
             text_format = QgsTextFormat()
             text_format.setSize(50)
-            text_format.setColor(colors[i])
-            label_settings.setFormat(text_format)
-
-            labeling = QgsVectorLayerSimpleLabeling(label_settings)
+            text_format.setColor(color)
+            
+            buffer = QgsTextBufferSettings()
+            buffer.setEnabled(True)
+            buffer.setSize(1)
+            buffer.setColor(QColor("black"))
+            text_format.setBuffer(buffer)
+            
+            settings.setFormat(text_format)
+            
+            # Ensure proper labeling behavior for lines
+            if layer.geometryType() == QgsWkbTypes.LineGeometry:
+                settings.placement = QgsPalLayerSettings.Curved
+                settings.isObstacle = False  # Prevents obstacles for labels
+            
+            labeling = QgsVectorLayerSimpleLabeling(settings)
             layer.setLabeling(labeling)
             layer.setLabelsEnabled(True)
+            
+            layer.setCustomProperty("labeling", "pal")
+            project.layerTreeRoot().findLayer(layer.id()).setCustomProperty("labeling", "pal")
+            
             layer.triggerRepaint()
+            print(f"Updated layer: {layer_name} with label color {bright_colors[i % len(bright_colors)]}")
+
+        # Force map refresh
+        self.iface.mapCanvas().refreshAllLayers()
+        QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
 
     def export_kml(self):
