@@ -193,8 +193,10 @@ class GenerateXMLWorker(QThread):
                         elif "St. lemn" in feature["DESC_CTG_MT_JT"]:
                             field_value = "Lemn"
                     child_element = ET.SubElement(new_element, field.name())
-                    if field_value not in config.NULL_VALUES:
+                    if str(field_value) not in config.NULL_VALUES:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    else:
+                        child_element.text = ""
                 parent.append(new_element)
 
             rough_string = ET.tostring(root, 'utf-8')
