@@ -28,6 +28,8 @@ from . import config
 import os
 import random
 
+from qgis.core import QgsProject, QgsDxfExport, QgsCoordinateTransformContext # type: ignore
+
 from PyQt5.QtGui import QColor # type: ignore
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QAction, QInputDialog # type: ignore 
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QFile # type: ignore
@@ -913,7 +915,33 @@ class StalpiAssist:
         # Force map refresh
         self.iface.mapCanvas().refreshAllLayers()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
+        
+        self.export_to_dxf()
 
+    def export_to_dxf(self):
+        layer_names = ["FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"]
+        output_path = os.path.join(self.base_dir, "export.dxf")
+        
+        project = QgsProject.instance()
+        layers = [project.mapLayersByName(name)[0] for name in layer_names]
+        
+        # Initialize DXF export
+        dxf_export = QgsDxfExport()
+        dxf_export.setMapLayers(layers)
+        dxf_export.setSymbologyExport(True)  # Preserve symbology
+        dxf_export.setExportLabelsAs('Text')  # Export labels as TEXT entities
+        dxf_export.setLayerTitleAsName(True)  # Use layer titles as names in DXF
+        dxf_export.setForce2d(True)  # Ensure geometries are 2D
+        
+        # Coordinate transformation context
+        transform_context = QgsCoordinateTransformContext()
+        
+        # Export to DXF
+        error = dxf_export.writeToFile(output_path, transform_context)
+        if error == QgsDxfExport.NoError:
+            print(f"DXF export successful: {output_path}")
+        else:
+            print(f"DXF export failed with error code: {error}")
 
     def export_kml(self):
         output_directory = self.base_dir
