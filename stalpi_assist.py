@@ -54,6 +54,9 @@ from qgis.core import ( # type: ignore
     QgsVectorLayerSimpleLabeling 
 )
 
+from PyQt5.QtWidgets import QInputDialog
+
+
 import processing  # type: ignore
 
 import os
@@ -65,6 +68,7 @@ from .func.helper_functions import HelperBase, SHPProcessor
 
 from .func.generate_xml import GenerateXMLDialog
 from .func.generate_excel import GenerateExcelDialog
+import pandas as pd
 
 
 class StalpiAssist:
@@ -195,6 +199,14 @@ class StalpiAssist:
         )
         
         self.actions_to_enable = [
+            self.add_action(
+                "Completare câmpuri",
+                text=self.tr(u'Completare câmpuri'),
+                callback=self.complete_fields,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/0.png')),
+                enabled_flag=False
+            ),
             self.add_action(
                 "001_TRONSON_JT",
                 text=self.tr(u'001_TRONSON_JT'),
@@ -378,6 +390,80 @@ class StalpiAssist:
                         layer_node.setItemVisibilityChecked(False)
                 else:
                     QgsMessageLog.logMessage("Failed to load GRID_GEOID layer.", "StalpiAssist", level=Qgis.Critical)
+
+    def complete_fields(self):
+        '''
+        - Complete @row_number field in NR_CRT for - STALP_JT, TRONSON_JT, BRANS_FIRI_GRMP_JT
+        - Ask user for Denumire
+        - Add in QGIS table from templates: bd.xlsx and search by Descrierea BDI == Denumire
+        - In layer TRONSON_JT - UNIT_LOG_INT - complete with the value from 'Unitatea logistica de intretinere'
+        - In layer TRONSON_JT - S_UNIT_LOG - complete with the value from 'Sectie unitate logistica'
+        - In layer TRONSON_JT - POST_LUC - complete with the value from 'Post de lucru'
+        
+        - In layer STALP_JT - DESC_DET - complete with the value from column f'{"Sucursala"}-{"Post de lucru"}'
+        '''
+
+        # Get active QGIS project
+        project = QgsProject.instance()
+
+        # Prompt user for 'Denumire'
+        denumire, ok = QInputDialog.getText(None, "Input Descriere BDI", "Introduce Descrierea BDI:")
+        if not ok or not denumire:
+            return
+        
+        # Load the Excel template
+        xlsx_path = self.plugin_path('func', 'templates', 'bd.xlsx')
+        df = pd.read_excel(xlsx_path)
+        
+        # Search for the row where 'Descrierea BDI' == Denumire
+        match = df[df['Descrierea BDI'] == denumire]
+        if match.empty:
+            QgsMessageLog.logMessage(f"No matching entry for {denumire} in bd.xlsx", "StalpiAssist", level=Qgis.Warning)
+            return
+        
+        # Extract relevant values
+        unit_log_int = match.iloc[0]['Unitate logistica de întretinere']
+        s_unit_log = match.iloc[0]['Sectie unitate logistica']
+        post_luc = match.iloc[0]['Post de lucru']
+        sucursala = match.iloc[0]['Sucursala']
+
+        # Assign NR_CRT based on row number
+        def assign_row_numbers(layer):
+            """Assigns sequential row numbers to NR_CRT."""
+            layer.startEditing()
+            for index, feat in enumerate(layer.getFeatures(), start=1):
+                feat["NR_CRT"] = index  # Assign row number
+                layer.updateFeature(feat)
+            layer.commitChanges()
+
+        # Update TRONSON_JT
+        tronson_layer = project.mapLayersByName("TRONSON_JT")[0]
+        if tronson_layer:
+            tronson_layer.startEditing()
+            for feat in tronson_layer.getFeatures():
+                feat["UNIT_LOG_INT"] = unit_log_int
+                feat["S_UNIT_LOG"] = s_unit_log
+                feat["POST_LUC"] = post_luc
+                tronson_layer.updateFeature(feat)
+            tronson_layer.commitChanges()
+            assign_row_numbers(tronson_layer)  # Assign row numbers after updating
+
+        # Update STALP_JT
+        stalp_layer = project.mapLayersByName("STALP_JT")[0]
+        if stalp_layer:
+            stalp_layer.startEditing()
+            for feat in stalp_layer.getFeatures():
+                feat["DESC_DET"] = f"{sucursala}-{post_luc}"
+                stalp_layer.updateFeature(feat)
+            stalp_layer.commitChanges()
+            assign_row_numbers(stalp_layer)  # Assign row numbers after updating
+
+        # Update BRANS_FIRI_GRMP_JT
+        brans_layer = project.mapLayersByName("BRANS_FIRI_GRPM_JT")[0]
+        if brans_layer:
+            assign_row_numbers(brans_layer)  # Directly assign row numbers
+
+        QMessageBox.information(None, "Success", "Fields completed successfully!")
 
 
 
@@ -623,7 +709,7 @@ class StalpiAssist:
         # Extract SCR_STLP column data
         scr_stlp_data = [
             feature["SCR_STLP"] for feature in scr_dwg_layer.getFeatures() 
-            if feature.isValid() and feature["SCR_STLP"] not in config.config.NULL_VALUES
+            if feature.isValid() and feature["SCR_STLP"] not in config.NULL_VALUES
 ]
         # Write to a .scr file in the "temp" subdirectory
         scr_file_path = self.helper.create_valid_output(self.base_dir, "SCR_STLP.scr", "temp")
@@ -811,32 +897,6 @@ class StalpiAssist:
             layer.setLabelsEnabled(True)
             layer.triggerRepaint()
 
-            # Add as a text layer in DXF export
-            text_layers.append(QgsDxfExport.DxfTextLayer(layer))
-
-        if layers:
-            dxf_filename = os.path.join(output_directory, "combined_layers.dxf")
-            dxf_export = QgsDxfExport()
-
-            map_settings = self.iface.mapCanvas().mapSettings()
-            dxf_export.setMapSettings(map_settings)
-            dxf_export.addLayers([QgsDxfExport.DxfLayer(layer) for layer in layers])
-            dxf_export.addLayers(text_layers)  # Include text layers
-            dxf_export.setSymbologyScale(1.0)
-            dxf_export.setLayerTitleAsName(True)
-            dxf_export.setDestinationCrs(project.crs())
-            dxf_export.setForce2d(True)
-            dxf_export.setExtent(map_settings.extent())
-            dxf_export.setUseLayerSymbology(True)  # Preserve symbology
-
-            dxf_file = QFile(dxf_filename)
-            if dxf_export.writeToFile(dxf_file, "utf-8") == QgsDxfExport.ExportResult.Success:
-                QMessageBox.information(self.iface.mainWindow(), "DXF Export", f"Layers exported successfully as {dxf_filename}")
-            else:
-                QMessageBox.critical(self.iface.mainWindow(), "DXF Export", "Error exporting layers as DXF")
-        else:
-            QMessageBox.critical(self.iface.mainWindow(), "DXF Export", "No layers to export.")
-
 
     def export_kml(self):
         output_directory = self.base_dir
@@ -894,7 +954,3 @@ class StalpiAssist:
         kmz_filename = os.path.join(output_directory, "merged_export.kmz")
         os.system(f"zip -j {kmz_filename} {output_directory}/*.kml")
         QMessageBox.information(self.iface.mainWindow(), "KMZ Export", f"KMZ file exported successfully at {kmz_filename}")
-
-
-
-

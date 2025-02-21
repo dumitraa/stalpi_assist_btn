@@ -202,16 +202,15 @@ class IgeaFiridaParser:
             existing_headers = {sheet.cell(row=header_row, column=col_idx).value: col_idx for col_idx in range(1, sheet.max_column + 1) if sheet.cell(row=header_row, column=col_idx).value}
 
             # Ensure headers exist
-            for idx, header in enumerate(headers, start=1):
-                if header not in existing_headers:
-                    sheet.cell(row=header_row, column=idx, value=header)
-                    existing_headers[header] = idx
+            header_mapping = {header: existing_headers.get(header, None) for header in headers}
+
 
             # Write data rows
             for row_idx, row_data in enumerate(df_sheet.itertuples(index=False, name=None), start=start_row):
-                for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                    col_idx = existing_headers.get(header, col_idx)  # Fallback to index
-                    sheet.cell(row=row_idx, column=col_idx, value=cell_value)
+                for col_name, cell_value in zip(headers, row_data):
+                    col_idx = header_mapping.get(col_name)
+                    if col_idx:  # Only write to columns that exist
+                        sheet.cell(row=row_idx, column=col_idx, value=cell_value)
                     
             for col_idx in range(1, sheet.max_column + 1):
                 cell = sheet.cell(row=header_row, column=col_idx)
