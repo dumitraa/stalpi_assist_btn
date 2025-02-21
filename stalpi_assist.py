@@ -26,6 +26,7 @@ from pathlib import Path
 from . import config
 
 import os
+import colorsys
 import random
 
 from qgis.core import QgsProject, QgsDxfExport, QgsCoordinateTransformContext # type: ignore
@@ -868,7 +869,16 @@ class StalpiAssist:
             "#FFA500", "#8A2BE2", "#DC143C", "#32CD32"
         ]
         
-        random.shuffle(bright_colors)
+        if len(layers) > len(bright_colors):
+            
+            bright_colors = [
+                "#%02x%02x%02x" % (
+                    int(255 * r), int(255 * g), int(255 * b)
+                )
+                for r, g, b in [colorsys.hsv_to_rgb(i / len(layers), 1, 1) for i in range(len(layers))]
+            ]
+        
+        unique_colors = random.sample(bright_colors, len(layers))  # Pick unique colors
         
         project = QgsProject.instance()
         
@@ -879,7 +889,7 @@ class StalpiAssist:
                 continue
             
             layer = layer[0]
-            color = QColor(bright_colors[i % len(bright_colors)]) 
+            color = QColor(unique_colors[i])  # Use unique color
             
             settings = QgsPalLayerSettings()
             settings.fieldName = "Descrierea BDI"
@@ -910,13 +920,12 @@ class StalpiAssist:
             project.layerTreeRoot().findLayer(layer.id()).setCustomProperty("labeling", "pal")
             
             layer.triggerRepaint()
-            print(f"Updated layer: {layer_name} with label color {bright_colors[i % len(bright_colors)]}")
+            print(f"Updated layer: {layer_name} with label color {unique_colors[i]}")
 
         # Force map refresh
         self.iface.mapCanvas().refreshAllLayers()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
-        
-        self.export_to_dxf()
+
 
     def export_to_dxf(self):
         layer_names = ["FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"]
