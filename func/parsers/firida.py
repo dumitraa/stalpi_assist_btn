@@ -210,7 +210,7 @@ class IgeaFiridaParser:
                 for col_name, cell_value in zip(headers, row_data):
                     col_idx = header_mapping.get(col_name)
                     if col_idx:  # Only write to columns that exist
-                        sheet.cell(row=row_idx, column=col_idx, value=cell_value)
+                        sheet.cell(row=row_idx, column=col_idx, value=cell_value if cell_value is not None else "")
                     
             for col_idx in range(1, sheet.max_column + 1):
                 cell = sheet.cell(row=header_row, column=col_idx)

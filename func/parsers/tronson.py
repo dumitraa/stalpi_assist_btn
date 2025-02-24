@@ -156,7 +156,7 @@ class IgeaTronsonParser:
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
                 if header.strip(" ") in existing_headers:
-                    sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value)
+                    sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
         
         workbook.save(excel_file)
         

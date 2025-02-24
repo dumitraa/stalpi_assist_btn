@@ -926,6 +926,7 @@ class StalpiAssist:
         self.iface.mapCanvas().refreshAllLayers()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
+        self.export_to_dxf()
 
     def export_to_dxf(self):
         layer_names = ["FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"]
