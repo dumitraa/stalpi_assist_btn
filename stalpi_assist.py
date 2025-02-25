@@ -33,7 +33,7 @@ from qgis.core import QgsProject, QgsDxfExport, QgsCoordinateTransformContext # 
 
 from PyQt5.QtGui import QColor # type: ignore
 from PyQt5.QtWidgets import QMessageBox, QFileDialog, QAction, QInputDialog # type: ignore 
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QFile # type: ignore
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QFile, QTextCodec # type: ignore
 from qgis.PyQt.QtGui import QIcon  # type: ignore
 from qgis.core import ( # type: ignore
     QgsMessageLog,
@@ -45,6 +45,7 @@ from qgis.core import ( # type: ignore
     QgsProcessing,
     QgsGeometry,
     QgsWkbTypes,
+    QgsDxfExport,
     QgsVectorFileWriter,
     QgsCoordinateTransformContext,
     register_function,
@@ -52,10 +53,15 @@ from qgis.core import ( # type: ignore
     QgsRendererCategory,
     QgsCategorizedSymbolRenderer,
     QgsPalLayerSettings,
+    QgsRectangle,
     QgsTextFormat,
     QgsVectorLayerSimpleLabeling,
-    QgsTextBufferSettings
+    QgsTextBufferSettings,
+    QgsCoordinateReferenceSystem,
+    QgsMapSettings,
+    QgsCoordinateTransform
 )
+from PyQt5.QtCore import QSize # type: ignore
 
 
 import processing  # type: ignore
@@ -928,30 +934,116 @@ class StalpiAssist:
 
         self.export_to_dxf()
 
+
     def export_to_dxf(self):
-        layer_names = ["FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"]
         output_path = os.path.join(self.base_dir, "export.dxf")
-        
-        project = QgsProject.instance()
-        layers = [project.mapLayersByName(name)[0] for name in layer_names]
-        
-        # Initialize DXF export
+        layer_names = ["FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"]
+
+        QgsMessageLog.logMessage("Starting DXF export...", "DXF Export", Qgis.Info)
+
+        # Collect only the layers you want
+        candidate_layers = QgsProject.instance().mapLayers().values()
+        layers_for_export = [layer for layer in candidate_layers if layer.name() in layer_names]
+
+        QgsMessageLog.logMessage(
+            f"Layers selected for export: {[lyr.name() for lyr in layers_for_export]}",
+            "DXF Export",
+            Qgis.Info
+        )
+
+        if not layers_for_export:
+            QgsMessageLog.logMessage("No matching layers found for export.", "DXF Export", Qgis.Warning)
+            return
+
+        # Make an empty extent
+        extent = QgsRectangle()
+        extent.setMinimal()
+
+        # We want to ensure all extents are combined in the destination CRS
+        dest_crs = QgsCoordinateReferenceSystem("EPSG:3844")
+        for layer in layers_for_export:
+            layer_extent = layer.extent()
+            if layer_extent.isEmpty():
+                continue
+
+            # If the layer has a different CRS, transform its bounding box
+            if layer.crs() != dest_crs:
+                try:
+                    xform = QgsCoordinateTransform(layer.crs(), dest_crs, QgsProject.instance())
+                    layer_extent_3844 = xform.transformBoundingBox(layer_extent)
+                    extent.combineExtentWith(layer_extent_3844)
+                except Exception as e:
+                    QgsMessageLog.logMessage(
+                        f"Error transforming extent for layer {layer.name()}: {str(e)}",
+                        "DXF Export",
+                        Qgis.Warning
+                    )
+            else:
+                extent.combineExtentWith(layer_extent)
+
+        QgsMessageLog.logMessage(
+            f"Combined extent in EPSG:3844: {extent.toString()}",
+            "DXF Export",
+            Qgis.Info
+        )
+
+        if extent.isEmpty():
+            QgsMessageLog.logMessage("Computed extent is empty. Export aborted.", "DXF Export", Qgis.Warning)
+            return
+
+        # Prepare map settings
+        settings = QgsMapSettings()
+        settings.setOutputSize(QSize(8000, 8000))
+        settings.setFlag(QgsMapSettings.DrawLabeling, True)
+        settings.setFlag(QgsMapSettings.UseAdvancedEffects, True)
+        settings.setFlag(QgsMapSettings.ForceVectorOutput, True)
+        settings.setFlag(QgsMapSettings.Antialiasing, True)
+        # settings.setCrsTransformEnabled(True)
+
+        settings.setLayers(layers_for_export)
+        settings.setExtent(extent)
+
+        # Configure DXF export
         dxf_export = QgsDxfExport()
-        dxf_export.setMapLayers(layers)
-        dxf_export.setSymbologyExport(True)  # Preserve symbology
-        dxf_export.setExportLabelsAs('Text')  # Export labels as TEXT entities
-        dxf_export.setLayerTitleAsName(True)  # Use layer titles as names in DXF
-        dxf_export.setForce2d(True)  # Ensure geometries are 2D
-        
-        # Coordinate transformation context
-        transform_context = QgsCoordinateTransformContext()
-        
-        # Export to DXF
-        error = dxf_export.writeToFile(output_path, transform_context)
-        if error == QgsDxfExport.NoError:
-            print(f"DXF export successful: {output_path}")
+        dxf_export.setMapSettings(settings)
+        dxf_export.setSymbologyScale(200)
+        dxf_export.setSymbologyExport(Qgis.FeatureSymbologyExport.SymbolLayerSymbology)
+        dxf_export.setLayerTitleAsName(1)
+        dxf_export.setDestinationCrs(dest_crs)
+        dxf_export.setExtent(extent)
+
+        # Add layers for export
+        dxf_export.addLayers([QgsDxfExport.DxfLayer(lyr) for lyr in layers_for_export])
+
+        QgsMessageLog.logMessage("DXF Export setup complete. Attempting to write file...", "DXF Export", Qgis.Info)
+
+        # Open DXF file for writing
+        file = QFile(output_path)
+        if not file.open(QFile.WriteOnly | QFile.Text):
+            QgsMessageLog.logMessage(f"Failed to open file {output_path} for writing.", "DXF Export", Qgis.Critical)
+            QMessageBox.critical(self.iface.mainWindow(), "DXF Export", f"Failed to open file {output_path} for writing.")
+            return
+
+        # Use UTF-8 encoding
+        encoding = QTextCodec.codecForName("UTF-8").name().data().decode("utf-8")
+        success = dxf_export.writeToFile(file, encoding)
+
+        QgsMessageLog.logMessage(f"DXF export success: {success}", "DXF Export", Qgis.Info)
+        file.close()
+
+        # Inform user of result
+        if success:
+            QgsMessageLog.logMessage(f"DXF file exported successfully at {output_path}", "DXF Export", Qgis.Success)
+            QMessageBox.information(self.iface.mainWindow(), "DXF Export",
+         f"DXF file exported successfully at {output_path}"
+            )
         else:
-            print(f"DXF export failed with error code: {error}")
+            QgsMessageLog.logMessage("DXF export failed", "DXF Export", Qgis.Critical)
+            QMessageBox.critical(
+                self.iface.mainWindow(),
+                "DXF Export",
+                "Failed to export DXF file."
+            )
 
     def export_kml(self):
         output_directory = self.base_dir
