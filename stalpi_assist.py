@@ -630,6 +630,7 @@ class StalpiAssist:
                     shutil.copy(img_path, new_path)
                 except Exception as e:
                     QgsMessageLog.logMessage(f"Error: Failed to copy image '{img_path}' to '{new_path}': {str(e)}", "StalpiAssist", level=Qgis.Critical)
+                    return
 
         QMessageBox.information(None, "Success", "Photos copied and renamed successfully!")
 
@@ -1015,7 +1016,8 @@ class StalpiAssist:
         self.iface.mapCanvas().refreshAllLayers()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
-        self.export_to_dxf()
+        # self.export_to_dxf()
+        self.export_to_kml()
 
 
     def export_to_dxf(self):
@@ -1120,7 +1122,7 @@ class StalpiAssist:
         )
 
 
-    def export_kml(self):
+    def export_to_kml(self):
         output_directory = self.base_dir
         layers_to_export = [
             "FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"
@@ -1136,6 +1138,7 @@ class StalpiAssist:
             layer = project.mapLayersByName(layer_name)
             if not layer:
                 QgsMessageLog.logMessage(f"Layer '{layer_name}' not found in the project.", "StalpiAssist", level=Qgis.Critical)
+                continue 
             layer = layer[0]
             
             # Export to KML with name field "Descrierea BDI"

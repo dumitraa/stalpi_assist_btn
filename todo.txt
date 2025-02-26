@@ -1,4 +1,4 @@
 - export dwg and kmz - firida macheta, bransamente macheta, stalpi macheta, tronson macheta 
-    > dwg - the layers have to have the labels from field "Descrierea BDI" - size 50, bright colors so that theyre distinguishible 
+    > dxf - add square for STP. 0 + add bigger coordinates for stalp
     > kml - color and pin ? 
 - auto register wbk 4 decimals
