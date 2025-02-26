@@ -1016,8 +1016,8 @@ class StalpiAssist:
         self.iface.mapCanvas().refreshAllLayers()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
-        # self.export_to_dxf()
-        self.export_to_kml()
+        self.export_to_dxf()
+        # self.export_to_kml()
 
 
     def export_to_dxf(self):
@@ -1129,17 +1129,17 @@ class StalpiAssist:
         ]
         
         # Define colors for layers
-        colors = [QColor("red"), QColor("blue"), QColor("green"), QColor("orange"), QColor("purple"), QColor("pink"), QColor("yellow")]
+        colors = ["ff0000ff", "ffff0000", "ff00ff00", "ff00ffff", "ffff00ff", "ffffa500", "ffffff00"]  # KML uses AABBGGRR format
         
         project = QgsProject.instance()
         
         # Export each layer separately as KML
         for i, layer_name in enumerate(layers_to_export):
-            layer = project.mapLayersByName(layer_name)
-            if not layer:
+            layers = project.mapLayersByName(layer_name)
+            if not layers:
                 QgsMessageLog.logMessage(f"Layer '{layer_name}' not found in the project.", "StalpiAssist", level=Qgis.Critical)
-                continue 
-            layer = layer[0]
+                continue  # Skip to the next layer if not found
+            layer = layers[0]
             
             # Export to KML with name field "Descrierea BDI"
             kml_filename = os.path.join(output_directory, f"{layer_name}.kml")
@@ -1148,7 +1148,7 @@ class StalpiAssist:
             options.fileEncoding = "utf-8"
             options.onlySelectedFeatures = False
             options.layerName = layer_name
-            options.kmlNameField = "Descrierea BDI"
+            options.layerOptions = [f'NameField=Descrierea BDI']  # Set the NameField to "Descrierea BDI"
             transform_context = QgsProject.instance().transformContext()
             error = QgsVectorFileWriter.writeAsVectorFormatV3(layer, kml_filename, transform_context, options)
             if error[0] == QgsVectorFileWriter.NoError:
@@ -1165,9 +1165,9 @@ class StalpiAssist:
                 
                 # Modify text size and color
                 text_size = "<LabelStyle><scale>2</scale></LabelStyle>"
-                color_tag = f"<color>{colors[i % len(colors)].name()}</color>"
+                color_tag = f"<color>{colors[i % len(colors)]}</color>"
                 
-                kml_content = kml_content.replace("<LabelStyle>", text_size).replace("<IconStyle>", f"<IconStyle>{color_tag}")
+                kml_content = kml_content.replace("<LabelStyle>", f"<LabelStyle>{text_size}").replace("<IconStyle>", f"<IconStyle>{color_tag}")
                 
                 # Special pin for "STP. 0" in "STALPI MACHETA"
                 if "STALPI MACHETA" in kml_file:
