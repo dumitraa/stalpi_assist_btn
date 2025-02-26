@@ -1,5 +1,4 @@
 - export dwg and kmz - firida macheta, bransamente macheta, stalpi macheta, tronson macheta 
     > dwg - the layers have to have the labels from field "Descrierea BDI" - size 50, bright colors so that theyre distinguishible 
     > kml - color and pin ? 
-- auto-add grid geoid to project
 - auto register wbk 4 decimals

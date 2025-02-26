@@ -1504,7 +1504,16 @@
               <Option type="Map">
                 <Option name="alias" type="invalid"/>
                 <Option name="comment" type="invalid"/>
-                <Option value="round_wkt_coordinates($geometry)" name="expression" type="QString"/>
+                <Option value="'LINESTRING (' || 
+array_to_string(
+    array_foreach(
+        generate_series(1, num_points($geometry)), 
+        with_variable('pt', point_n($geometry, @element), 
+            replace(format_number(x(@pt), 4), ',', '') || ' ' || replace(format_number(y(@pt), 4), ',', '')
+        )
+    ), 
+' ') || ')'
+" name="expression" type="QString"/>
                 <Option value="0" name="length" type="int"/>
                 <Option value="GEO" name="name" type="QString"/>
                 <Option value="0" name="precision" type="int"/>
@@ -1847,7 +1856,16 @@
               <Option type="Map">
                 <Option value="" name="alias" type="QString"/>
                 <Option value="" name="comment" type="QString"/>
-                <Option value="round_wkt_coordinates($geometry)" name="expression" type="QString"/>
+                <Option value="'LINESTRING (' || 
+array_to_string(
+    array_foreach(
+        generate_series(1, num_points($geometry)), 
+        with_variable('pt', point_n($geometry, @element), 
+            replace(format_number(x(@pt), 4), ',', '') || ' ' || replace(format_number(y(@pt), 4), ',', '')
+        )
+    ), 
+' ') || ')'
+" name="expression" type="QString"/>
                 <Option value="0" name="length" type="int"/>
                 <Option value="GEO" name="name" type="QString"/>
                 <Option value="0" name="precision" type="int"/>

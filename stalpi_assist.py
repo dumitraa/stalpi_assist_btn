@@ -43,12 +43,10 @@ from qgis.core import ( # type: ignore
     QgsProject,
     QgsVectorLayer,
     QgsProcessing,
-    QgsGeometry,
     QgsWkbTypes,
     QgsDxfExport,
     QgsVectorFileWriter,
     QgsCoordinateTransformContext,
-    register_function,
     QgsSymbol,
     QgsRendererCategory,
     QgsCategorizedSymbolRenderer,
@@ -59,10 +57,12 @@ from qgis.core import ( # type: ignore
     QgsTextBufferSettings,
     QgsCoordinateReferenceSystem,
     QgsMapSettings,
-    QgsCoordinateTransform
+    QgsCoordinateTransform,
+    QgsWkbTypes
 )
 from PyQt5.QtCore import QSize # type: ignore
 
+import shutil
 
 import processing  # type: ignore
 
@@ -190,7 +190,6 @@ class StalpiAssist:
 
 
     def initGui(self):
-
         self.toolbar = self.iface.addToolBar('StalpiAssist')
         self.toolbar.setObjectName('StalpiAssist')
         self.toolbar.setMovable(True)
@@ -228,6 +227,22 @@ class StalpiAssist:
                 callback=self.run_brans_model,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/2.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "Copiere si redenumire poze",
+                text=self.tr(u'Copiere si redenumire poze'),
+                callback=self.copy_rename_pictures,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/photos.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "Redenumire cale server SFTP poze",
+                text=self.tr(u'Redenumire cale server SFTP poze'),
+                callback=self.rename_sftp_pictures,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/sftp.png')),
                 enabled_flag=False
             ),
             self.add_action(
@@ -279,8 +294,8 @@ class StalpiAssist:
                 enabled_flag=False
             ),
             self.add_action(
-                "Stilizare Machete",
-                text=self.tr(u'Stilizare Machete'),
+                "Export DXF",
+                text=self.tr(u'Export DXF'),
                 callback=self.export_dxf_kml,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/export.png')),
@@ -298,39 +313,6 @@ class StalpiAssist:
             self.iface.removePluginMenu(self.tr(u'&Stalpi Assist'), action)
             self.toolbar.removeAction(action)
         del self.toolbar
-        
-    def register_functions(self):
-        def round_wkt_coordinates(values, feature=None, parent=None, context=None):
-            def format_point(point):
-                return f"{round(point.x(), 4):.4f} {round(point.y(), 4):.4f}"
-
-            geometry = values[0]  # Get the geometry from the input
-            if isinstance(geometry, QgsGeometry):
-                if geometry.isMultipart():
-                    if geometry.type() == QgsWkbTypes.LineGeometry:
-                        parts = [
-                            "(" + ", ".join(format_point(point) for point in line) + ")"
-                            for line in geometry.asMultiPolyline()
-                        ]
-                        wkt = f"MULTILINESTRING ({', '.join(parts)})"
-                    else:
-                        wkt = geometry.asWkt()  # For other geometry types
-                else:
-                    if geometry.type() == QgsWkbTypes.LineGeometry:
-                        points = ", ".join(format_point(point) for point in geometry.asPolyline())
-                        wkt = f"LINESTRING ({points})"
-                    else:
-                        wkt = geometry.asWkt()  # For other geometry types
-                return wkt
-            return None  # Return None if input is invalid
-
-        register_function(
-            round_wkt_coordinates,
-            group="Custom",
-            usesgeometry=True,
-            params_as_list=True,
-            helpText="Rounds WKT geometry coordinates to a given precision."
-        )
         
     def get_layer_path(self, layer_name):
         """
@@ -461,6 +443,7 @@ class StalpiAssist:
             stalp_layer.startEditing()
             for feat in stalp_layer.getFeatures():
                 feat["DESC_DET"] = f"{sucursala}-{post_luc}"
+                feat["TIP_ZONA_AMP"] = "Rural" if feat["TIP_ZONA_AMP"] in config.NULL_VALUES else feat["TIP_ZONA_AMP"]
                 stalp_layer.updateFeature(feat)
             stalp_layer.commitChanges()
             assign_row_numbers(stalp_layer)  # Assign row numbers after updating
@@ -603,6 +586,106 @@ class StalpiAssist:
 
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+
+    def copy_rename_pictures(self):
+        new_directory = QFileDialog.getExistingDirectory(None, "Select Directory to Copy Photos")
+
+        if not new_directory:
+            QgsMessageLog.logMessage("No directory selected.", "StalpiAssist", level=Qgis.Warning)
+
+        os.makedirs(new_directory, exist_ok=True)
+
+        layers = QgsProject.instance().mapLayersByName('STALP_XML_')
+
+        if not layers:
+            QgsMessageLog.logMessage("Layer 'STALP_XML_' not found in the project.", "StalpiAssist", level=Qgis.Warning)
+            return
+
+        layer = layers[0] 
+
+        img_fields = ['IMG_FILE_1', 'IMG_FILE_2', 'IMG_FILE_3', 'IMG_FILE_4']
+        new_name_fields = ['new_name_1', 'new_name_2', 'new_name_3', 'new_name_4']
+
+        for feature in layer.getFeatures():
+            for img_field, name_field in zip(img_fields, new_name_fields):
+                img_path = feature[img_field]
+                new_name = feature[name_field]
+
+                if not img_path:
+                    QgsMessageLog.logMessage(f"Warning: Missing image path for {name_field}. Skipping.", "StalpiAssist", level=Qgis.Critical)
+                    return
+                
+                if not new_name:
+                    QgsMessageLog.logMessage(f"Warning: Missing new name for {name_field}. Skipping.", "StalpiAssist", level=Qgis.Critical)
+                    return
+
+                if not os.path.exists(img_path):
+                    QgsMessageLog.logMessage(f"Warning: Image path '{img_path}' does not exist. Skipping.", "StalpiAssist", level=Qgis.Critical)
+                    return
+
+                file_ext = os.path.splitext(img_path)[1]
+                new_path = os.path.join(new_directory, new_name + file_ext)
+
+                try:
+                    shutil.copy(img_path, new_path)
+                except Exception as e:
+                    QgsMessageLog.logMessage(f"Error: Failed to copy image '{img_path}' to '{new_path}': {str(e)}", "StalpiAssist", level=Qgis.Critical)
+
+        QMessageBox.information(None, "Success", "Photos copied and renamed successfully!")
+
+
+    def rename_sftp_pictures(self):
+        layers = QgsProject.instance().mapLayersByName("STALP_XML_")
+        
+        if not layers:
+            QgsMessageLog.logMessage("Error: Layer 'STALP_XML_' not found.", "StalpiAssist", Qgis.Critical)
+            return
+        
+        layer = layers[0]
+
+        base_text, ok = QInputDialog.getText(None, "Enter Base Text", "Enter the base text for IMG_FILE fields:")
+
+        if not ok or not base_text.strip():
+            QgsMessageLog.logMessage("Operation canceled or no base text entered.", "StalpiAssist", Qgis.Warning)
+            return
+
+        base_text = base_text.strip()
+
+        if not layer.isEditable():
+            layer.startEditing()
+
+        img_fields = ["IMG_FILE_1", "IMG_FILE_2", "IMG_FILE_3", "IMG_FILE_4"]
+        new_name_fields = ["new_name_1", "new_name_2", "new_name_3", "new_name_4"]
+        
+        count_updated = 0
+        for feature in layer.getFeatures():
+            feature_id = feature.id()
+            updates = {}
+
+            for img_field, new_name_field in zip(img_fields, new_name_fields):
+                new_name = feature[new_name_field]
+
+                if not new_name:
+                    QgsMessageLog.logMessage(f"Feature {feature_id}: Missing value for {new_name_field}. Skipping.", "StalpiAssist", Qgis.Warning
+                    )
+                    continue
+
+                updates[img_field] = f"{base_text}/{new_name}.JPG"
+
+            if updates:
+                layer.changeAttributeValues(feature_id, updates)
+                count_updated += 1
+
+        if count_updated > 0:
+            if layer.commitChanges():
+                QMessageBox.information(None, "Success", "IMG_FILE fields have been updated with the entered base text.")
+            else:
+                QMessageBox.critical(None, "Error", "Failed to save changes to the layer.")
+                layer.rollback()
+        else:
+            layer.rollback()
+            QMessageBox.warning(None, "No Changes", "No IMG_FILE fields were updated.")
+
 
     def run_stalp_model(self):
         """Run Stalp model with a progress window."""
@@ -1031,19 +1114,11 @@ class StalpiAssist:
         QgsMessageLog.logMessage(f"DXF export success: {success}", "DXF Export", Qgis.Info)
         file.close()
 
-        # Inform user of result
-        if success:
-            QgsMessageLog.logMessage(f"DXF file exported successfully at {output_path}", "DXF Export", Qgis.Success)
-            QMessageBox.information(self.iface.mainWindow(), "DXF Export",
-         f"DXF file exported successfully at {output_path}"
-            )
-        else:
-            QgsMessageLog.logMessage("DXF export failed", "DXF Export", Qgis.Critical)
-            QMessageBox.critical(
-                self.iface.mainWindow(),
-                "DXF Export",
-                "Failed to export DXF file."
-            )
+        QgsMessageLog.logMessage(f"DXF file exported successfully at {output_path}", "DXF Export", Qgis.Success)
+        QMessageBox.information(self.iface.mainWindow(), "DXF Export",
+        f"DXF file exported successfully at {output_path}"
+        )
+
 
     def export_kml(self):
         output_directory = self.base_dir
