@@ -230,6 +230,14 @@ class StalpiAssist:
                 enabled_flag=False
             ),
             self.add_action(
+                "003_STALP_JT",
+                text=self.tr(u'003_STALP_JT'),
+                callback=self.run_stalp_model,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/3.png')),
+                enabled_flag=False
+            ),
+                self.add_action(
                 "Copiere si redenumire poze",
                 text=self.tr(u'Copiere si redenumire poze'),
                 callback=self.copy_rename_pictures,
@@ -243,14 +251,6 @@ class StalpiAssist:
                 callback=self.rename_sftp_pictures,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/sftp.png')),
-                enabled_flag=False
-            ),
-            self.add_action(
-                "003_STALP_JT",
-                text=self.tr(u'003_STALP_JT'),
-                callback=self.run_stalp_model,
-                parent=self.iface.mainWindow(),
-                icon_path= str(self.plugin_path('icons/3.png')),
                 enabled_flag=False
             ),
             self.add_action(
@@ -484,9 +484,7 @@ class StalpiAssist:
                     scratch_layer, save_path, QgsCoordinateTransformContext(), options
                 )
 
-                if error[0] == QgsVectorFileWriter.NoError:
-                    QMessageBox.information(self.iface.mainWindow(), "Success", f"Layer saved successfully at {save_path}")
-                else:
+                if not error[0] == QgsVectorFileWriter.NoError:
                     QMessageBox.critical(self.iface.mainWindow(), "Save Error", f"Failed to save layer: {error}")
 
                 # Duplicate the output layer as NO_OFFSET_TRONSON_XML_
@@ -571,11 +569,7 @@ class StalpiAssist:
                         scratch_layer, save_path, QgsCoordinateTransformContext(), options
                     )
 
-                    if error[0] == QgsVectorFileWriter.NoError:
-                        QMessageBox.information(
-                            self.iface.mainWindow(), "Success", f"Layer {key} saved successfully at {save_path}"
-                        )
-                    else:
+                    if not error[0] == QgsVectorFileWriter.NoError:
                         QMessageBox.critical(
                             self.iface.mainWindow(), "Save Error", f"Failed to save layer {key}: {error}"
                         )
@@ -636,55 +630,74 @@ class StalpiAssist:
 
 
     def rename_sftp_pictures(self):
+        # Attempt to retrieve the layer
         layers = QgsProject.instance().mapLayersByName("STALP_XML_")
-        
         if not layers:
             QgsMessageLog.logMessage("Error: Layer 'STALP_XML_' not found.", "StalpiAssist", Qgis.Critical)
             return
-        
         layer = layers[0]
 
+        # Prompt user for base text
         base_text, ok = QInputDialog.getText(None, "Enter Base Text", "Enter the base text for IMG_FILE fields:")
-
         if not ok or not base_text.strip():
             QgsMessageLog.logMessage("Operation canceled or no base text entered.", "StalpiAssist", Qgis.Warning)
             return
-
         base_text = base_text.strip()
 
+        # Ensure the layer is editable
         if not layer.isEditable():
             layer.startEditing()
 
+        # Define the fields to be updated
         img_fields = ["IMG_FILE_1", "IMG_FILE_2", "IMG_FILE_3", "IMG_FILE_4"]
         new_name_fields = ["new_name_1", "new_name_2", "new_name_3", "new_name_4"]
-        
+
+        # Create a mapping from field names to field indices
+        field_indices = {field.name(): idx for idx, field in enumerate(layer.fields())}
+
         count_updated = 0
         for feature in layer.getFeatures():
             feature_id = feature.id()
             updates = {}
 
             for img_field, new_name_field in zip(img_fields, new_name_fields):
-                new_name = feature[new_name_field]
-
-                if not new_name:
-                    QgsMessageLog.logMessage(f"Feature {feature_id}: Missing value for {new_name_field}. Skipping.", "StalpiAssist", Qgis.Warning
+                # Check if the new_name_field exists in the feature
+                if new_name_field not in feature.fields().names():
+                    QgsMessageLog.logMessage(
+                        f"Feature {feature_id}: Field '{new_name_field}' does not exist. Skipping.",
+                        "StalpiAssist",
+                        Qgis.Warning
                     )
                     continue
 
-                updates[img_field] = f"{base_text}/{new_name}.JPG"
+                new_name = feature[new_name_field]
+
+                # Ensure the img_field exists in the layer
+                if img_field in field_indices:
+                    img_field_index = field_indices[img_field]
+                    updates[img_field_index] = f"{base_text}/{new_name}.JPG"
+                else:
+                    QgsMessageLog.logMessage(
+                        f"Feature {feature_id}: Field '{img_field}' not found in layer.",
+                        "StalpiAssist",
+                        Qgis.Warning
+                    )
 
             if updates:
-                layer.changeAttributeValues(feature_id, updates)
+                # Apply updates to the feature
+                for field_index, value in updates.items():
+                    layer.changeAttributeValue(feature_id, field_index, value)
                 count_updated += 1
 
+        # Commit changes if any updates were made
         if count_updated > 0:
             if layer.commitChanges():
                 QMessageBox.information(None, "Success", "IMG_FILE fields have been updated with the entered base text.")
             else:
                 QMessageBox.critical(None, "Error", "Failed to save changes to the layer.")
-                layer.rollback()
+                layer.rollBack()
         else:
-            layer.rollback()
+            layer.rollBack()
             QMessageBox.warning(None, "No Changes", "No IMG_FILE fields were updated.")
 
 
@@ -721,11 +734,7 @@ class StalpiAssist:
                     scratch_layer, save_path, QgsCoordinateTransformContext(), options
                 )
 
-                if error[0] == QgsVectorFileWriter.NoError:
-                    QMessageBox.information(
-                        self.iface.mainWindow(), "Success", f"Layer STALP_XML_ saved successfully at {save_path}"
-                    )
-                else:
+                if not error[0] == QgsVectorFileWriter.NoError:
                     QMessageBox.critical(
                         self.iface.mainWindow(), "Save Error", f"Failed to save layer STALP_XML_: {error}"
                     )
@@ -777,11 +786,7 @@ class StalpiAssist:
                         scratch_layer, save_path, QgsCoordinateTransformContext(), options
                     )
 
-                    if error[0] == QgsVectorFileWriter.NoError:
-                        QMessageBox.information(
-                            self.iface.mainWindow(), "Success", f"Layer {key} saved successfully at {save_path}"
-                        )
-                    else:
+                    if not error[0] == QgsVectorFileWriter.NoError:
                         QMessageBox.critical(
                             self.iface.mainWindow(), "Save Error", f"Failed to save layer {key}: {error}"
                         )
@@ -842,11 +847,7 @@ class StalpiAssist:
                     scratch_layer, save_path, QgsCoordinateTransformContext(), options
                 )
 
-                if error[0] == QgsVectorFileWriter.NoError:
-                    QMessageBox.information(
-                        self.iface.mainWindow(), "Success", f"Layer TRONSON_predare_xml saved successfully at {save_path}"
-                    )
-                else:
+                if not error[0] == QgsVectorFileWriter.NoError:
                     QMessageBox.critical(
                         self.iface.mainWindow(), "Save Error", f"Failed to save layer TRONSON_predare_xml: {error}"
                     )
