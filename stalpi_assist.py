@@ -407,7 +407,7 @@ class StalpiAssist:
         # Search for the row where 'Descrierea BDI' == Denumire
         match = df[df['Descrierea BDI'] == denumire]
         if match.empty:
-            QgsMessageLog.logMessage(f"No matching entry for {denumire} in bd.xlsx", "StalpiAssist", level=Qgis.Warning)
+            QMessageBox.critical(None, "Error", f"No matching entry for {denumire} in bd.xlsx")
             return
         
         # Extract relevant values
@@ -1038,7 +1038,7 @@ class StalpiAssist:
         )
 
         if not layers_for_export:
-            QgsMessageLog.logMessage("No matching layers found for export.", "DXF Export", Qgis.Warning)
+            QMessageBox.critical(self.iface.mainWindow(), "DXF Export", "No layers found for export.")
             return
 
         # Make an empty extent

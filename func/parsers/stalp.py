@@ -186,7 +186,7 @@ class IgeaStalpParser:
                 tip_mat=feature["TIP_MAT"],
                 desc_ctg_mt_jt=feature["DESC_CTG_MT_JT"],
                 nr_cir=feature["NR_CIR"],
-                uzura_stp="5",
+                uzura_stp=feature["UZURA_STP"],
                 tip_fund=feature["TIP_FUND"],
                 obs_fund=feature["OBS_FUND"],
                 anc=feature["ANC"],
@@ -303,11 +303,8 @@ class IgeaStalpParser:
         for col_idx in range(1, sheet.max_column + 1):
             cell = sheet.cell(row=header_row, column=col_idx)
             if cell.value == "Echipamente comunicatii":
-                QgsMessageLog.logMessage(f"Found header in cell {cell.coordinate}: {cell.value}", "StalpiAssist", level=Qgis.Warning)
                 cell.value = "Echipamente comunicatii "
                 break
-            else:
-                QgsMessageLog.logMessage(f"No match in cell {cell.coordinate}: {cell.value}.", "StalpiAssist", level=Qgis.Warning)
 
         workbook.save(excel_file)
 
