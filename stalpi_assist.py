@@ -1097,6 +1097,7 @@ class StalpiAssist:
         dxf_export.setLayerTitleAsName(1)
         dxf_export.setDestinationCrs(dest_crs)
         dxf_export.setExtent(extent)
+        dxf_export.setFlags(QgsDxfExport.FlagNoMText)
 
         # Add layers for export
         dxf_export.addLayers([QgsDxfExport.DxfLayer(lyr) for lyr in layers_for_export])

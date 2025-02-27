@@ -1,4 +1,3 @@
 - export dwg and kmz - firida macheta, bransamente macheta, stalpi macheta, tronson macheta 
-    > dxf - add square for STP. 0 + add bigger coordinates for stalp
-    > kml - color and pin ? 
-- auto register wbk 4 decimals
+    > dxf - add square for STP. 0 + add bigger coordinates for stalp (so that he wont have to use the scr from scr_dwg)
+    > kml - color and pin ? <<<<<<<<<<
