@@ -1017,8 +1017,8 @@ class StalpiAssist:
         self.iface.mapCanvas().refreshAllLayers()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
-        self.export_to_dxf()
-        # self.export_to_kml()
+        # self.export_to_dxf()
+        self.export_to_kml()
 
 
     def export_to_dxf(self):

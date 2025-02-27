@@ -182,16 +182,22 @@ class GenerateXMLWorker(QThread):
                     field_value = feature[field.name()]
                     if field.name() == "fid" or field.name().startswith("new_name"):
                         continue
-                    if str(xml_template_path).endswith("stalp.xml") and field.name() == "NR_CIR":
-                        if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
-                            field_value = f"{field_value} circuite"
-                    if str(xml_template_path).endswith("stalp.xml") and field.name() == "TIP_MAT":
-                        if feature["DESC_CTG_MT_JT"] in ["SV 10001", "SV 10002"]:
-                            field_value = "Beton"
-                        elif "St. metalic" in feature["DESC_CTG_MT_JT"]:
-                            field_value = "Metal"
-                        elif "St. lemn" in feature["DESC_CTG_MT_JT"]:
-                            field_value = "Lemn"
+                    if str(xml_template_path).endswith("stalp.xml"):
+                        if field.name() == "NR_CIR":
+                            if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
+                                field_value = f"{field_value} circuite"
+                        if field.name() == "TIP_MAT":
+                            if feature["DESC_CTG_MT_JT"] in ["SV 10001", "SV 10002"]:
+                                field_value = "Beton"
+                            elif "St. metalic" in feature["DESC_CTG_MT_JT"]:
+                                field_value = "Metal"
+                            elif "St. lemn" in feature["DESC_CTG_MT_JT"]:
+                                field_value = "Lemn"
+                        if field.name() == "UZURA_STP":
+                            field_value = "5"
+                        if field.name() == "PROP_CATV":
+                            field_value = "0"
+                    
                     child_element = ET.SubElement(new_element, field.name())
                     if str(field_value) not in config.NULL_VALUES:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

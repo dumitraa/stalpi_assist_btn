@@ -124,7 +124,7 @@ class IgeaStalpParser:
             "Proprietar LTC": "prop_ltc",
             "CATV": "catv",
             "Numar circuite CATV": "nr_cir_catv",
-            "Proprietar CATV": "prop_catv",
+            "Proprietar CATV": "0", # new
             "Echipamente comunicatii": "echip_com",
             "Dispozitiv cuib pasari": "disp_cuib_pas",
             "Tipul de consola": lambda _: "0",
@@ -186,7 +186,7 @@ class IgeaStalpParser:
                 tip_mat=feature["TIP_MAT"],
                 desc_ctg_mt_jt=feature["DESC_CTG_MT_JT"],
                 nr_cir=feature["NR_CIR"],
-                uzura_stp=feature["UZURA_STP"],
+                uzura_stp="5",
                 tip_fund=feature["TIP_FUND"],
                 obs_fund=feature["OBS_FUND"],
                 anc=feature["ANC"],
