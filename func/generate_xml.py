@@ -195,9 +195,8 @@ class GenerateXMLWorker(QThread):
                                 field_value = "Lemn"
                         if field.name() == "UZURA_STP":
                             field_value = "5"
-                        if field.name() == "PROP_CATV":
+                        if field.name() == "PROP_CATV" or field.name() == "PROP_LTC":
                             field_value = "0"
-                    
                     child_element = ET.SubElement(new_element, field.name())
                     if str(field_value) not in config.NULL_VALUES:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

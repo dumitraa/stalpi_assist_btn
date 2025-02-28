@@ -59,7 +59,7 @@ class IgeaFiridaParser:
         self.mapping = {
             "Nr.crt": "nr_crt",
             "Identificator": "iden",
-            "Descrierea BDI": ("FR ", "iden"),          # might not be correct
+            "Descrierea BDI": lambda fr: "FR" if fr.rol_firi == "de retea" else "FB" + fr.iden,
             "ID_Locatia": "nr_crt_loc",
             "Locatia": ("BR ", "iden"),                # might not be correct
             "ID_Descrierea instalatiei superioare": "id_inst_sup",

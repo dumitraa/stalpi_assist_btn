@@ -121,10 +121,10 @@ class IgeaStalpParser:
             "Proprietar FO": "prop_fo",
             "LTC": "ltc",
             "Numar circuite LTC": "nr_cir_ltc",
-            "Proprietar LTC": "prop_ltc",
+            "Proprietar LTC": lambda _: "0",
             "CATV": "catv",
             "Numar circuite CATV": "nr_cir_catv",
-            "Proprietar CATV": "0", # new
+            "Proprietar CATV": lambda _: "0",
             "Echipamente comunicatii": "echip_com",
             "Dispozitiv cuib pasari": "disp_cuib_pas",
             "Tipul de consola": lambda _: "0",

@@ -1017,8 +1017,8 @@ class StalpiAssist:
         self.iface.mapCanvas().refreshAllLayers()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
-        # self.export_to_dxf()
-        self.export_to_kml()
+        self.export_to_dxf()
+        # self.export_to_kml()
 
 
     def export_to_dxf(self):
@@ -1092,7 +1092,7 @@ class StalpiAssist:
         # Configure DXF export
         dxf_export = QgsDxfExport()
         dxf_export.setMapSettings(settings)
-        dxf_export.setSymbologyScale(200)
+        dxf_export.setSymbologyScale(50)
         dxf_export.setSymbologyExport(Qgis.FeatureSymbologyExport.SymbolLayerSymbology)
         dxf_export.setLayerTitleAsName(1)
         dxf_export.setDestinationCrs(dest_crs)
