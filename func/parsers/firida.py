@@ -7,7 +7,7 @@ from ... import config
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
                  class_id_inst_sup, id_inst_sup, nr_crt_inst_sup, jud, prim, loc, tip_str, 
-                 street, nr, etaj, rol_firi, tip_firi_ret, tip_firi_br, ampl, mat, lim_prop, 
+                 str, nr, etaj, rol_firi, tip_firi_ret, tip_firi_br, ampl, mat, lim_prop, 
                  def_firi, nr_cir, an_func, alt, geo, sursa_coord, data_coord, long, lat, 
                  x_stereo_70, y_stereo_70, z_stereo_70):
         self.id = id
@@ -25,7 +25,7 @@ class FiridaJT:
         self.prim = prim
         self.loc = loc
         self.tip_str = tip_str
-        self.street = street
+        self.str = str
         self.nr = nr
         self.etaj = etaj
         self.rol_firi = rol_firi
@@ -68,7 +68,7 @@ class IgeaFiridaParser:
             "Primarie": "prim",
             "Localitate": "loc",
             "Tip strada": "tip_str",
-            "Strada": "street",
+            "Strada": "str",
             "Numarul": "nr",
             "Etaj": "etaj",
             "Rolul firidei": "rol_firi",
