@@ -1,6 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from ... import config
+from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 
 
 class GrupMasuraJT:
@@ -26,7 +27,7 @@ class GrupMasuraJT:
         self.ap = ap
 
     def __repr__(self):
-        return f"GrupMasuraJT(denum={self.denum}, niv_ten={self.niv_ten}, tip_lin={self.tip_lin})"
+        return f"GrupMasuraJT(denum={self.denum})"
 
 
 class IgeaGrupMasuraParser:
@@ -38,9 +39,9 @@ class IgeaGrupMasuraParser:
         self.mapping = {
             "Nr.crt": "nr_crt",
             "Denumire": "denum",
-            "Descrierea BDI": ("GRUP MASURA", "denum"),
+            "Descrierea BDI": lambda gr: f"GRUP MASURA {gr.denum['correct']}",
             "Nr.crt_Locatia": "nr_crt_loc",
-            "Locatia": ("FB", "denum"),
+            "Locatia": lambda gr: f"FB {gr.denum['initial']}",
             "ID_Descrierea instalatiei uperioare": "class_id_inst_sup",
             "Descrierea instalatiei uperioare": "nr_crt_inst_sup",
             "Judet": "jud",
@@ -48,7 +49,7 @@ class IgeaGrupMasuraParser:
             "Localitate": "loc",
             "Tip strada": "tip_str",
             "Strada": "str",
-            "nr./ scara": "nr_scara",
+            "nr./ scara": lambda gr: gr.denum['nr'],
             "Etaj": "etaj",
             "Apartament": "ap"
         }
@@ -61,13 +62,17 @@ class IgeaGrupMasuraParser:
 
         features = list(self.vector_layer.getFeatures())
         for feature in features:
+            correct_denum = self.get_correct_denum(feature)
             attributes = {key: feature[key] for key in feature.fields().names()}
             grup_data = GrupMasuraJT(
                 id=feature.id(),
                 class_id=attributes.get("CLASS_ID"),
                 id_bdi=attributes.get("ID_BDI"),
                 nr_crt=attributes.get("NR_CRT"),
-                denum=attributes.get("DENUM"),
+                denum={'initial': attributes.get("DENUM"), # if this turns out to not be needed just default to attributes.get("DENUM")
+                       'correct': correct_denum['denum'],
+                       'nr': correct_denum['nr_scara']
+                       }, 
                 class_id_loc=attributes.get("CLASS_ID_LOC"),
                 id_loc=attributes.get("ID_LOC"),
                 nr_crt_loc=attributes.get("NR_CRT_LOC"),
@@ -90,6 +95,80 @@ class IgeaGrupMasuraParser:
     
     def get_data(self):
         return self.grupuri
+    
+    def get_correct_denum(self, feature):
+        denum_to_match = feature["DENUM"]
+        nr_crt_to_match = feature["NR_CRT"]
+        str_value = feature["STR"]
+        nr_scara = feature["NR_SCARA"]
+
+        # If NR_SCARA is a string without commas, return DENUM immediately
+        if isinstance(nr_scara, str) and "," not in nr_scara:
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        # Get the layer
+        layer_list = QgsProject.instance().mapLayersByName("GRUP_MASURA_XML_")
+        if not layer_list:
+            QgsMessageLog.logMessage("Layer GRUP_MASURA_XML_ not found!", "StalpiAssist", level=Qgis.Critical)
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        gr_layer = layer_list[0]  # Extract first matched layer
+
+        # Extract all relevant features from layer
+        matching_features = [f for f in gr_layer.getFeatures() if f["DENUM"] == denum_to_match]
+
+        if not matching_features:
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        QgsMessageLog.logMessage(f"Found {len(matching_features)} matching features for DENUM={denum_to_match}", "StalpiAssist", level=Qgis.Info)
+
+        # Sort matching features by NR_CRT (handling NULLs safely)
+        matching_features.sort(key=lambda f: (f["NR_CRT"] if f["NR_CRT"] not in config.NULL_VALUES else float("inf")))
+
+        # Find the index of our feature in the sorted list
+        try:
+            index = next(i for i, f in enumerate(matching_features) if f["NR_CRT"] == nr_crt_to_match)
+        except StopIteration:
+            QgsMessageLog.logMessage(f"NR_CRT={nr_crt_to_match} not found in sorted features.", "StalpiAssist", level=Qgis.Warning)
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error finding index: {e}", "StalpiAssist", level=Qgis.Critical)
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        # Extract NR_SCARA values and ensure they are properly indexed
+        nr_scara_list = [f["NR_SCARA"] for f in matching_features]
+        
+        if len(nr_scara_list) > index:
+            correct_nr_scara = nr_scara_list[index]
+        else:
+            correct_nr_scara = nr_scara_list[0]  # Fallback if index is out of range
+
+        # Handle cases where NR_SCARA is a comma-separated string
+        if isinstance(correct_nr_scara, str) and "," in correct_nr_scara:
+            scara_values = correct_nr_scara.split(",")
+            correct_nr_scara = scara_values[index] if index < len(scara_values) else scara_values[0]  # Get nth index or fallback to first
+
+        return {
+            'denum': f"{str_value} {correct_nr_scara}".strip(),
+            'nr_scara': correct_nr_scara
+        } 
+
+
     
     def resolve_mapping(self, parser, mapping):
         if isinstance(mapping, tuple):
@@ -135,3 +214,4 @@ class IgeaGrupMasuraParser:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
 
         workbook.save(excel_file)
+

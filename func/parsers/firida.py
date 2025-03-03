@@ -116,7 +116,7 @@ class IgeaFiridaParser:
                 prim = attributes.get('PRIM'),
                 loc = attributes.get('LOC'),
                 tip_str = attributes.get('TIP_STR'),
-                street = attributes.get('STR'),
+                str = attributes.get('STR'),
                 nr = attributes.get('NR'),
                 etaj = attributes.get('ETAJ'),
                 rol_firi = attributes.get('ROL_FIRI'),
