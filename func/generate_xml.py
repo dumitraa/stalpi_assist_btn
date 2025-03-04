@@ -197,6 +197,9 @@ class GenerateXMLWorker(QThread):
                             field_value = "5"
                         if field.name() == "PROP_CATV" or field.name() == "PROP_LTC":
                             field_value = "0"
+                    if str(xml_template_path).endswith("linie_jt.xml"):
+                        if field.name() == "DENUM":
+                            field_value = ''
                     child_element = ET.SubElement(new_element, field.name())
                     if str(field_value) not in config.NULL_VALUES:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
