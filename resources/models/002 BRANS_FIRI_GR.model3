@@ -2766,7 +2766,8 @@ array_to_string(
             replace(format_number(x(@pt), 4), ',', '') || ' ' || replace(format_number(y(@pt), 4), ',', '')
         )
     ), 
-' ') || ')'
+', '
+) || ')'
 "/>
                 <Option type="int" name="length" value="0"/>
                 <Option type="QString" name="name" value="GEO"/>
@@ -3158,7 +3159,8 @@ array_to_string(
             replace(format_number(x(@pt), 4), ',', '') || ' ' || replace(format_number(y(@pt), 4), ',', '')
         )
     ), 
-' ') || ')'
+', '
+) || ')'
 "/>
                 <Option type="int" name="length" value="0"/>
                 <Option type="QString" name="name" value="GEO"/>
@@ -3881,7 +3883,8 @@ array_to_string(
             replace(format_number(x(@pt), 4), ',', '') || ' ' || replace(format_number(y(@pt), 4), ',', '')
         )
     ), 
-' ') || ')'
+', '
+) || ')'
 "/>
                 <Option type="int" name="length" value="0"/>
                 <Option type="QString" name="name" value="GEO"/>

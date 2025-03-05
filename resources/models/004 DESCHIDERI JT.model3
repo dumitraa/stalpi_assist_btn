@@ -1512,7 +1512,8 @@ array_to_string(
             replace(format_number(x(@pt), 4), ',', '') || ' ' || replace(format_number(y(@pt), 4), ',', '')
         )
     ), 
-' ') || ')'
+', '
+) || ')'
 " name="expression" type="QString"/>
                 <Option value="0" name="length" type="int"/>
                 <Option value="GEO" name="name" type="QString"/>
@@ -1864,7 +1865,8 @@ array_to_string(
             replace(format_number(x(@pt), 4), ',', '') || ' ' || replace(format_number(y(@pt), 4), ',', '')
         )
     ), 
-' ') || ')'
+', '
+) || ')'
 " name="expression" type="QString"/>
                 <Option value="0" name="length" type="int"/>
                 <Option value="GEO" name="name" type="QString"/>
