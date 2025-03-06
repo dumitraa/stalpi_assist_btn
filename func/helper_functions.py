@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xlsxwriter
 from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis # type: ignore
+from .. import config
 
 
 class HelperBase:
@@ -145,6 +146,78 @@ class HelperBase:
         except Exception as e:
             QgsMessageLog.logMessage(f"Error processing and adding output: {e}", "StalpiAssist", level=Qgis.Critical)
             return False
+        
+    def get_correct_denum(self, feature):
+        denum_to_match = feature["DENUM"]
+        nr_crt_to_match = feature["NR_CRT"]
+        str_value = feature["STR"]
+        nr_scara = feature["NR_SCARA"]
+
+        # If NR_SCARA is a string without commas, return DENUM immediately
+        if isinstance(nr_scara, str) and "," not in nr_scara:
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        # Get the layer
+        layer_list = QgsProject.instance().mapLayersByName("GRUP_MASURA_XML_")
+        if not layer_list:
+            QgsMessageLog.logMessage("Layer GRUP_MASURA_XML_ not found!", "StalpiAssist", level=Qgis.Critical)
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        gr_layer = layer_list[0]  # Extract first matched layer
+
+        # Extract all relevant features from layer
+        matching_features = [f for f in gr_layer.getFeatures() if f["DENUM"] == denum_to_match]
+
+        if not matching_features:
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        QgsMessageLog.logMessage(f"Found {len(matching_features)} matching features for DENUM={denum_to_match}", "StalpiAssist", level=Qgis.Info)
+
+        # Sort matching features by NR_CRT (handling NULLs safely)
+        matching_features.sort(key=lambda f: (f["NR_CRT"] if f["NR_CRT"] not in config.NULL_VALUES else float("inf")))
+
+        # Find the index of our feature in the sorted list
+        try:
+            index = next(i for i, f in enumerate(matching_features) if f["NR_CRT"] == nr_crt_to_match)
+        except StopIteration:
+            QgsMessageLog.logMessage(f"NR_CRT={nr_crt_to_match} not found in sorted features.", "StalpiAssist", level=Qgis.Warning)
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error finding index: {e}", "StalpiAssist", level=Qgis.Critical)
+            return {
+                'denum': denum_to_match,
+                'nr_scara': nr_scara
+            }
+
+        # Extract NR_SCARA values and ensure they are properly indexed
+        nr_scara_list = [f["NR_SCARA"] for f in matching_features]
+        
+        if len(nr_scara_list) > index:
+            correct_nr_scara = nr_scara_list[index]
+        else:
+            correct_nr_scara = nr_scara_list[0]  # Fallback if index is out of range
+
+        # Handle cases where NR_SCARA is a comma-separated string
+        if isinstance(correct_nr_scara, str) and "," in correct_nr_scara:
+            scara_values = correct_nr_scara.split(",")
+            correct_nr_scara = scara_values[index] if index < len(scara_values) else scara_values[0]  # Get nth index or fallback to first
+
+        return {
+            'denum': f"{str_value} {correct_nr_scara}".strip(),
+            'nr_scara': correct_nr_scara
+        } 
 
 # MARK: PARSERS
     def save_xml(self, xml_name, name, xml_file):
