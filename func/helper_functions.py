@@ -150,19 +150,16 @@ class HelperBase:
     def get_fr_iden(self, feature, is_firida):
         
         street = feature['STR']
-
-        if is_firida:
-            number = feature['NR']
-        else:
-            number = feature['NR_IMOB']
+        number = feature['NR'] if is_firida else feature["NR_IMOB"]
             
-        first_num = number.strip().split(",")[0]
+        first_num = number.strip().split(",")[0] if "," in number else number
+        first_str = street.strip().split(",")[0] if "," in street else street
         
         full_str = street + " " + number
-        short_str = street + " " + first_num
+        short_str = first_str + " " + first_num
         nr = first_num
         
-        return {'initial': full_str, 'correct': short_str, 'nr': nr}
+        return {'initial': full_str, 'correct': short_str, 'nr': nr, 'first_str': first_str}
         
     def get_correct_denum(self, feature):
         denum_to_match = feature["DENUM"]
