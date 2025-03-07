@@ -147,6 +147,23 @@ class HelperBase:
             QgsMessageLog.logMessage(f"Error processing and adding output: {e}", "StalpiAssist", level=Qgis.Critical)
             return False
         
+    def get_fr_iden(self, feature, is_firida):
+        
+        street = feature['STR']
+
+        if is_firida:
+            number = feature['NR']
+        else:
+            number = feature['NR_IMOB']
+            
+        first_num = number.strip().split(",")[0]
+        
+        full_str = street + " " + number
+        short_str = street + " " + first_num
+        nr = first_num
+        
+        return {'initial': full_str, 'correct': short_str, 'nr': nr}
+        
     def get_correct_denum(self, feature):
         denum_to_match = feature["DENUM"]
         nr_crt_to_match = feature["NR_CRT"]

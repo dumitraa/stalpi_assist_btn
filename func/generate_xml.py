@@ -182,6 +182,18 @@ class GenerateXMLWorker(QThread):
                     field_value = feature[field.name()]
                     if field.name() == "fid" or field.name().startswith("new_name"):
                         continue
+                    if str(xml_template_path).endswith("firida.xml"):
+                        fr_iden = self.helper.get_fr_iden(feature, True)
+                        if field.name() == "IDEN":
+                            field_value = fr_iden['correct']
+                        if field.name() == "NR":
+                            field_value = fr_iden['nr']
+                    if str(xml_template_path).endswith("bransament.xml"):
+                        br_denum = self.helper.get_fr_iden(feature, False)
+                        if field.name() == "DENUM":
+                            field_value = br_denum['correct']
+                        if field.name() == "NR_IMOB":
+                            field_value = br_denum['nr']
                     if str(xml_template_path).endswith("grup_masura.xml"):
                         correct_denum = self.helper.get_correct_denum(feature)
                         if field.name() == "DENUM":

@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject  # type: ignore
 from ... import config
+from ..helper_functions import HelperBase
 
 
 class BransamentJT():
@@ -41,12 +42,13 @@ class BransamentJT():
 
 class IgeaBransamentParser:
     def __init__(self, vector_layer):
+        self.helper = HelperBase()
         self.vector_layer = vector_layer
         self.bransamente: List[BransamentJT] = []
         self.mapping = {
             "Nr.crt": "nr_crt",
-            "Denumire": "denum",
-            "Descrierea BDI": ("BR ", "denum"),
+            "Denumire": lambda br: br.denum['correct'],
+            "Descrierea BDI": lambda br: "BR " + br.denum['correct'],
             "ID_Locatia": "id_loc",
             "Locatia": lambda br: self.get_linie_value(br),
             "ID_PAPT/Nr. Crt_Plecare bransament": "nr_crt_plc_br",
@@ -60,7 +62,7 @@ class IgeaBransamentParser:
             "Localitate": "loc",
             "Tip strada": "tip_str",
             "Strada": "street",
-            "Numar imobil": "nr_imob",
+            "Numar imobil": lambda br: br.denum['nr'],
             "Geometrie": "geo",
             "Sursa coordonate": "sursa_coord",
             "Data actualizarii coordonatelor": "data_coord",
@@ -73,11 +75,15 @@ class IgeaBransamentParser:
 
         features = list(self.vector_layer.getFeatures())
         for feature in features:
+            br_iden = self.helper.get_fr_iden(feature, False)
+            
             bransament_data = BransamentJT(
                 id=feature.id(),
                 id_bdi=feature['ID_BDI'],
                 nr_crt=feature['NR_CRT'],
-                denum=feature['DENUM'],
+                denum={'initial': br_iden['initial'],
+                        'correct': br_iden['correct'],
+                        'nr': br_iden['nr']},
                 class_id_loc=feature['CLASS_ID_LOC'],
                 id_loc=feature['ID_LOC'],
                 nr_crt_loc=feature['NR_CRT_LOC'],

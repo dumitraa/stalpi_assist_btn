@@ -3,6 +3,7 @@ from openpyxl import load_workbook
 import pandas as pd
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 from ... import config
+from ..helper_functions import HelperBase
 
 class FiridaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, iden, class_id_loc, id_loc, nr_crt_loc, 
@@ -55,13 +56,14 @@ class IgeaFiridaParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.firide: List[FiridaJT] = []
+        self.helper = HelperBase()
         
         self.mapping = {
             "Nr.crt": "nr_crt",
-            "Identificator": "iden",
-            "Descrierea BDI": lambda fr: "FR" if fr.rol_firi == "de retea" else "FB" + fr.iden,
+            "Identificator": lambda fr: fr.iden['correct'],
+            "Descrierea BDI": lambda fr: "FR" if fr.rol_firi == "de retea" else "FB" + fr.iden['correct'],
             "ID_Locatia": "nr_crt_loc",
-            "Locatia": ("BR ", "iden"),                # might not be correct
+            "Locatia": lambda fr: "BR " + fr.iden['initial'],
             "ID_Descrierea instalatiei superioare": "id_inst_sup",
             "Descrierea instalatiei superioare": lambda fr: self.get_linie_value(fr),
             "Judet": "jud",
@@ -69,7 +71,7 @@ class IgeaFiridaParser:
             "Localitate": "loc",
             "Tip strada": "tip_str",
             "Strada": "str",
-            "Numarul": "nr",
+            "Numarul": lambda fr: fr.iden['nr'],
             "Etaj": "etaj",
             "Rolul firidei": "rol_firi",
             "Tip firida retea": "tip_firi_ret",
@@ -90,8 +92,6 @@ class IgeaFiridaParser:
             "Sursa coordonate": "sursa_coord",
             "Data actualizarii coordonatelor": "data_coord"
         }
-        
-        self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "IDEN", "CLASS_ID_LOC", "ID_LOC", "NR_CRT_LOC", "CLASS_ID_INST_SUP", "ID_INST_SUP", "NR_CRT_INST_SUP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "NR", "ETAJ", "ROL_FIRI", "TIP_FIRI_RET", "TIP_FIRI_BR", "AMPL", "MAT", "LIM_PROP", "DEF_FIRI", "NR_CIR", "AN_FUNC", "ALT", "GEO", "SURSA_COORD", "DATA_COORD", "LONG", "LAT", "X_STEREO_70", "Y_STEREO_70", "Z_STEREO_70"]
 
     def parse(self):
         if not self.vector_layer.isValid():
@@ -100,12 +100,15 @@ class IgeaFiridaParser:
         features = list(self.vector_layer.getFeatures())
         for feature in features:
             attributes = {key: feature[key] for key in feature.fields().names()}
+            fr_iden = self.helper.get_fr_iden(feature, True)
             firida_data = FiridaJT(
                 id = feature.id(),
                 class_id = attributes.get('CLASS_ID'),
                 id_bdi = attributes.get('ID_BDI'),
                 nr_crt = attributes.get('NR_CRT'),
-                iden = attributes.get('IDEN'),
+                iden = {'initial': fr_iden['initial'],
+                        'correct': fr_iden['correct'],
+                        'nr': fr_iden['nr']},
                 class_id_loc = attributes.get('CLASS_ID_LOC'),
                 id_loc = attributes.get('ID_LOC'),
                 nr_crt_loc = attributes.get('NR_CRT_LOC'),
@@ -145,7 +148,7 @@ class IgeaFiridaParser:
 
     def get_data(self):
         return self.firide
-    
+
     def resolve_mapping(self, parser, mapping):
         if isinstance(mapping, tuple):
             parts = [
