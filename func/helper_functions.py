@@ -83,7 +83,7 @@ class HelperBase:
                 self.n(str(getattr(parser, element, ""))) if hasattr(parser, element) else self.n(str(element))
                 for element in mapping
             ]
-            return " ".join(filter(None, parts).split())
+            return self.n(" ".join(filter(None, parts)))
         
         elif callable(mapping):
             return mapping(parser)
@@ -115,6 +115,9 @@ class HelperBase:
         return layers
     
     def n(self, value):
+        '''
+        normalize the value by removing extra spaces and newlines
+        '''
         return " ".join(value.split())
 
 
@@ -182,11 +185,13 @@ class HelperBase:
         str_value = self.n(feature["STR"]).split(",")[0] if "," in feature["STR"] else feature["STR"]
         str_full = feature["STR"]
         nr_scara = feature["NR_SCARA"]
+        short_denum = f"{str_full.split(',')[0] if ',' in str_full else str_full} {nr_scara.split(',')[0] if ',' in nr_scara else nr_scara}"
 
         # If NR_SCARA is a string without commas, return DENUM immediately
         if isinstance(nr_scara, str) and "," not in nr_scara:
             return {
                 'denum': denum_to_match,
+                'short_denum': short_denum,
                 'nr_scara': nr_scara,
                 'str': str_value
             }
@@ -197,6 +202,7 @@ class HelperBase:
             QgsMessageLog.logMessage("Layer GRUP_MASURA_XML_ not found!", "StalpiAssist", level=Qgis.Critical)
             return {
                 'denum': denum_to_match,
+                'short_denum': short_denum,
                 'nr_scara': nr_scara,
                 'str': str_value
             }
@@ -209,6 +215,7 @@ class HelperBase:
         if not matching_features:
             return {
                 'denum': denum_to_match,
+                'short_denum': short_denum,
                 'nr_scara': nr_scara,
                 'str': str_value
             }
@@ -226,12 +233,14 @@ class HelperBase:
             return {
                 'denum': denum_to_match,
                 'nr_scara': nr_scara,
+                'short_denum': short_denum,
                 'str': str_value
             }
         except Exception as e:
             QgsMessageLog.logMessage(f"Error finding index: {e}", "StalpiAssist", level=Qgis.Critical)
             return {
                 'denum': denum_to_match,
+                'short_denum': short_denum,
                 'nr_scara': nr_scara,
                 'str': str_value
             }
@@ -257,9 +266,55 @@ class HelperBase:
 
         return {
             'denum': self.n(f"{str_value} {correct_nr_scara}"),
+            'short_denum': short_denum,
             'nr_scara': correct_nr_scara,
             'str': str_value
         } 
+        
+    def remove_diacritics(self):
+        layers = ["STALP_JT", "BRANS_FIRI_GRPM_JT", "FB pe C LES"]
+        fields = ["JUD", "PRIM", "LOC", "STR"]
+            
+        diacritics_map = {
+            'ă': 'a', 'Ă': 'A',
+            'â': 'a', 'Â': 'A',
+            'î': 'i', 'Î': 'I',
+            'ș': 's', 'Ș': 'S',
+            'ț': 't', 'Ț': 'T'
+        }
+
+        # Helper function for replacing diacritics
+        def replace_diacritics(text):
+            for diacritic, replacement in diacritics_map.items():
+                text = text.replace(diacritic, replacement).upper()
+            return text
+
+        # Iterate through each layer name
+        for layer_name in layers:
+            layer = QgsProject.instance().mapLayersByName(layer_name)[0]
+            if not layer:
+                continue
+
+            updates = {}
+            for feature in layer.getFeatures():
+                attrs = {}
+                for field in fields:
+                    idx = layer.fields().indexOf(field)
+                    if idx == -1:
+                        continue
+
+                    original_value = feature[field]
+                    if original_value and isinstance(original_value, str):
+                        cleaned_value = replace_diacritics(original_value)
+                        attrs[idx] = cleaned_value
+                if attrs:
+                    updates[feature.id()] = attrs
+
+            # Commit updates in batch (efficient method)
+            layer.startEditing()
+            layer.dataProvider().changeAttributeValues(updates)
+            layer.commitChanges()
+
 
 # MARK: PARSERS
     def save_xml(self, xml_name, name, xml_file):

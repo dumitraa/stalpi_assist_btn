@@ -41,7 +41,7 @@ class IgeaGrupMasuraParser:
             "Denumire": lambda gr: gr.denum['correct'],
             "Descrierea BDI": lambda gr: f"GRUP MASURA {gr.denum['correct']}",
             "Nr.crt_Locatia": "nr_crt_loc",
-            "Locatia": lambda gr: f"FB {gr.denum['initial']}",
+            "Locatia": lambda gr: f"FB {gr.denum['short_denum']}",
             "ID_Descrierea instalatiei uperioare": "class_id_inst_sup",
             "Descrierea instalatiei uperioare": "nr_crt_inst_sup",
             "Judet": "jud",
@@ -71,6 +71,7 @@ class IgeaGrupMasuraParser:
                 nr_crt=attributes.get("NR_CRT"),
                 denum={'initial': attributes.get("DENUM"),
                        'correct': correct_denum['denum'],
+                       'short_denum': correct_denum['short_denum'],
                        'nr': correct_denum['nr_scara'],
                        'str': correct_denum['str']
                        }, 
