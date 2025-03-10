@@ -182,6 +182,7 @@ class GenerateXMLWorker(QThread):
                     field_value = feature[field.name()]
                     if field.name() == "fid" or field.name().startswith("new_name"):
                         continue
+                    
                     if str(xml_template_path).endswith("firida.xml"):
                         fr_iden = self.helper.get_fr_iden(feature, True)
                         if field.name() == "IDEN":
@@ -190,6 +191,7 @@ class GenerateXMLWorker(QThread):
                             field_value = fr_iden['nr']
                         if field.name() == "STR":
                             field_value = fr_iden['first_str']
+                            
                     if str(xml_template_path).endswith("bransament.xml"):
                         br_denum = self.helper.get_fr_iden(feature, False)
                         if field.name() == "DENUM":
@@ -198,12 +200,16 @@ class GenerateXMLWorker(QThread):
                             field_value = br_denum['nr']
                         if field.name() == "STR":
                             field_value = br_denum['first_str']
+                            
                     if str(xml_template_path).endswith("grup_masura.xml"):
                         correct_denum = self.helper.get_correct_denum(feature)
                         if field.name() == "DENUM":
                             field_value = correct_denum['denum']
                         if field.name() == "NR_SCARA":
                             field_value = correct_denum['nr_scara']
+                        if field.name() == "STR":
+                            field_value = correct_denum['str']
+                            
                     if str(xml_template_path).endswith("stalp.xml"):
                         if field.name() == "NR_CIR":
                             if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
@@ -219,6 +225,7 @@ class GenerateXMLWorker(QThread):
                             field_value = "5"
                         if field.name() == "PROP_CATV" or field.name() == "PROP_LTC":
                             field_value = "0"
+                            
                     if str(xml_template_path).endswith("linie_jt.xml"):
                         if field.name() == "DENUM":
                             field_value = ''
@@ -325,6 +332,6 @@ class GenerateXMLWorker(QThread):
             correct_nr_scara = scara_values[index] if index < len(scara_values) else scara_values[0]  # Get nth index or fallback to first
 
         return {
-            'denum': f"{str_value} {correct_nr_scara}".strip(),
+            'denum': self.helper.n(f"{str_value} {correct_nr_scara}"),
             'nr_scara': correct_nr_scara
         } 

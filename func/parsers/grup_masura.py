@@ -1,7 +1,7 @@
 from typing import List
 from openpyxl import load_workbook
 from ... import config
-from .. import helper_functions as hf
+from ..helper_functions import HelperBase
 
 
 class GrupMasuraJT:
@@ -34,7 +34,7 @@ class IgeaGrupMasuraParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.grupuri: List[GrupMasuraJT] = []
-        self.helper = hf.HelperBase()
+        self.helper = HelperBase()
 
         self.mapping = {
             "Nr.crt": "nr_crt",
@@ -48,7 +48,7 @@ class IgeaGrupMasuraParser:
             "Primarie": "prim",
             "Localitate": "loc",
             "Tip strada": "tip_str",
-            "Strada": "str",
+            "Strada": lambda gr: gr.denum['str'],
             "nr./ scara": lambda gr: gr.denum['nr'],
             "Etaj": "etaj",
             "Apartament": "ap"
@@ -71,7 +71,8 @@ class IgeaGrupMasuraParser:
                 nr_crt=attributes.get("NR_CRT"),
                 denum={'initial': attributes.get("DENUM"),
                        'correct': correct_denum['denum'],
-                       'nr': correct_denum['nr_scara']
+                       'nr': correct_denum['nr_scara'],
+                       'str': correct_denum['str']
                        }, 
                 class_id_loc=attributes.get("CLASS_ID_LOC"),
                 id_loc=attributes.get("ID_LOC"),
@@ -96,17 +97,6 @@ class IgeaGrupMasuraParser:
     def get_data(self):
         return self.grupuri
 
-    def resolve_mapping(self, parser, mapping):
-        if isinstance(mapping, tuple):
-            parts = [
-                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
-                for element in mapping
-            ]
-            return " ".join(filter(None, parts)).strip()
-        elif callable(mapping):
-            return mapping(parser)
-        return str(getattr(parser, mapping, "")).strip() if mapping else ""
-
     def write_to_excel_sheet(self, excel_file):
         data = []
         headers = list(self.mapping.keys())
@@ -120,7 +110,7 @@ class IgeaGrupMasuraParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                value = self.resolve_mapping(grupa, mapping)
+                value = self.helper.resolve_mapping(grupa, mapping)
                 # Replace None with an empty string
                 value = "" if value in config.NULL_VALUES else value
                 row.append(value)
@@ -136,7 +126,7 @@ class IgeaGrupMasuraParser:
         # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip(" ") in existing_headers:
+                if self.helper.n(header) in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
 
         workbook.save(excel_file)

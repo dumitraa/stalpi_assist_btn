@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 from ... import config
+from ..helper_functions import HelperBase
 
 class TronsonJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, nr_crt_loc, 
@@ -42,6 +43,7 @@ class IgeaTronsonParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.tronsoane: List[TronsonJT] = []
+        self.helper = HelperBase()
         
         self.mapping = {
             "Nr. crt": "nr_crt",
@@ -52,9 +54,9 @@ class IgeaTronsonParser:
             "ID_Locatia": "id_loc",
             "Locatia": lambda tr: self.get_linie_value(tr),
             "Nr.crt_Inceput de tronson": "nr_crt_inc_tr",
-            "Inceput de tronson": lambda tr: tr.denum.split('-')[0].strip() if tr.denum else "",
+            "Inceput de tronson": lambda tr: self.helper.n(tr.denum.split('-')[0]) if tr.denum else "",
             "Nr.crt_Final de tronson": "nr_crt_fin_tr",
-            "Final de tronson": lambda tr: tr.denum.split('-')[1].strip() if tr.denum else "",
+            "Final de tronson": lambda tr: self.helper.n(tr.denum.split('-')[1]) if tr.denum else "",
             "Tipul tronsonului": "tip_tr",
             "Tip conductor": "tip_cond",
             "Lungimea tronsonului (km)": "lung_tr",
@@ -115,17 +117,6 @@ class IgeaTronsonParser:
 
     def get_data(self):
         return self.tronsoane
-    
-    def resolve_mapping(self, parser, mapping):
-        if isinstance(mapping, tuple):
-            parts = [
-                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
-                for element in mapping
-            ]
-            return " ".join(filter(None, parts)).strip()
-        elif callable(mapping):
-            return mapping(parser)
-        return str(getattr(parser, mapping, "")).strip() if mapping else ""
 
 
     def write_to_excel_sheet(self, excel_file):
@@ -140,7 +131,7 @@ class IgeaTronsonParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                value = self.resolve_mapping(tronson, mapping)
+                value = self.helper.resolve_mapping(tronson, mapping)
                 # Replace None or invalid values with an empty string
                 value = "" if value in config.NULL_VALUES else value
                 row.append(value)
@@ -155,7 +146,7 @@ class IgeaTronsonParser:
             
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip(" ") in existing_headers:
+                if self.helper.n(header) in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
         
         workbook.save(excel_file)

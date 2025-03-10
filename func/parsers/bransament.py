@@ -111,17 +111,6 @@ class IgeaBransamentParser:
     def get_data(self):
         return self.bransamente
 
-    def resolve_mapping(self, parser, mapping):
-        if isinstance(mapping, tuple):
-            parts = [
-                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
-                for element in mapping
-            ]
-            return " ".join(filter(None, parts)).strip()
-        elif callable(mapping):
-            return mapping(parser)
-        return str(getattr(parser, mapping, "")).strip() if mapping else ""
-
     def write_to_excel_sheet(self, excel_file):
         data = []
         headers = list(self.mapping.keys())
@@ -133,7 +122,7 @@ class IgeaBransamentParser:
             row = []
             for header in headers:
                 mapping = self.mapping[header]
-                value = self.resolve_mapping(bransament, mapping)
+                value = self.helper.resolve_mapping(bransament, mapping)
                 value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
@@ -150,7 +139,7 @@ class IgeaBransamentParser:
 
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip(" ") in existing_headers:
+                if self.helper.n(header) in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
 
         try:

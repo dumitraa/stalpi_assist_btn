@@ -147,17 +147,6 @@ class IgeaFiridaParser:
     def get_data(self):
         return self.firide
 
-    def resolve_mapping(self, parser, mapping):
-        if isinstance(mapping, tuple):
-            parts = [
-                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
-                for element in mapping
-            ]
-            return " ".join(filter(None, parts)).strip()
-        elif callable(mapping):
-            return mapping(parser)
-        return str(getattr(parser, mapping, "")).strip() if mapping else ""
-
     def write_to_excel_sheet(self, excel_file, split=False, done_split=False):
         data = []
         headers = list(self.mapping.keys())
@@ -171,7 +160,7 @@ class IgeaFiridaParser:
             row = []
             for header in headers:
                 mapping = self.mapping[header]
-                value = self.resolve_mapping(firida, mapping)
+                value = self.helper.resolve_mapping(firida, mapping)
                 value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)

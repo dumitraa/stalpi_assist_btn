@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 from ... import config
+from ..helper_functions import HelperBase
 
 class StalpJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, id_linie_jt_1, nr_crt_linie_jt_1, id_linie_jt_2, nr_crt_linie_jt_2, id_linie_jt_3, nr_crt_linie_jt_3, id_linie_jt_4, nr_crt_linie_jt_4, id_linie_jt_5, nr_crt_linie_jt_5, id_linie_jt_6, nr_crt_linie_jt_6, id_linie_jt_7, nr_crt_linie_jt_7, denum, nr_ins_stp, desc_det, prop, det_prop, tip_zona_amp, jud, prim, loc, tip_str, str, tip_cir, tip_mat, desc_ctg_mt_jt, nr_cir, uzura_stp, tip_fund, obs_fund, anc, obs_anc, adaos, obs_adaos, fib_opt, nr_cir_fo, prop_fo, ltc, nr_cir_ltc, prop_ltc, catv, nr_cir_catv, prop_catv, echip_com, disp_cuib_pas, nr_cons_c2s, nr_cons_c4s, nr_cons_c2t, nr_cons_c4t, nr_cons_c2br, nr_cons_c4br, tip_leg_jt, priza_leg_pam, corp_il, cutie_sel, geo, lat, long, alt, x_stereo_70, y_stereo_70, z_stereo_70, sursa_coord, data_coord, obs, img_file_1, img_file_2, img_file_3, img_file_4):
@@ -89,6 +90,7 @@ class IgeaStalpParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.stalpi: List[StalpJT] = []
+        self.helper = HelperBase()
 
         self.mapping = {
             "Nr crt": "nr_crt",
@@ -236,17 +238,6 @@ class IgeaStalpParser:
             
     def get_data(self):
         return self.stalpi
-
-    def resolve_mapping(self, parser, mapping):
-        if isinstance(mapping, tuple):
-            parts = [
-                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
-                for element in mapping
-            ]
-            return " ".join(filter(None, parts)).strip()
-        elif callable(mapping):
-            return mapping(parser)
-        return str(getattr(parser, mapping, "")).strip() if mapping else ""
     
     def get_linie_value(self, feature):
         '''
@@ -283,7 +274,7 @@ class IgeaStalpParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                value = self.resolve_mapping(stalp, mapping)
+                value = self.helper.resolve_mapping(stalp, mapping)
                 value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
@@ -297,7 +288,7 @@ class IgeaStalpParser:
         
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip() in existing_headers:
+                if self.helper.n(header) in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
         
         for col_idx in range(1, sheet.max_column + 1):

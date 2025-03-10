@@ -639,10 +639,10 @@ class StalpiAssist:
 
         # Prompt user for base text
         base_text, ok = QInputDialog.getText(None, "Enter Base Text", "Enter the base text for IMG_FILE fields:")
-        if not ok or not base_text.strip():
+        if not ok or not self.helper.n(base_text):
             QgsMessageLog.logMessage("Operation canceled or no base text entered.", "StalpiAssist", Qgis.Warning)
             return
-        base_text = base_text.strip()
+        base_text = self.helper.n(base_text)
 
         # Ensure the layer is editable
         if not layer.isEditable():

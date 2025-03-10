@@ -76,6 +76,18 @@ class HelperBase:
         valid_path = os.path.normpath(os.path.join(full_path, filename)).replace("\\", "/")
         
         return valid_path
+    
+    def resolve_mapping(self, parser, mapping):
+        if isinstance(mapping, tuple):
+            parts = [
+                self.n(str(getattr(parser, element, ""))) if hasattr(parser, element) else self.n(str(element))
+                for element in mapping
+            ]
+            return " ".join(filter(None, parts).split())
+        
+        elif callable(mapping):
+            return mapping(parser)
+        return self.n(str(getattr(parser, mapping, ""))) if mapping else ""
 
     
     # Retrieve layers by name from the QGIS project
@@ -101,6 +113,9 @@ class HelperBase:
             layers[layer_name] = layer  # Add the layer if found, else None
 
         return layers
+    
+    def n(self, value):
+        return " ".join(value.split())
 
 
     def add_layer_to_project(self, layer):
@@ -152,8 +167,8 @@ class HelperBase:
         street = feature['STR']
         number = feature['NR'] if is_firida else feature["NR_IMOB"]
             
-        first_num = number.strip().split(",")[0] if "," in number else number
-        first_str = street.strip().split(",")[0] if "," in street else street
+        first_num = self.n(number).split(",")[0] if "," in number else number
+        first_str = self.n(street).split(",")[0] if "," in street else street
         
         full_str = street + " " + number
         short_str = first_str + " " + first_num
@@ -164,14 +179,16 @@ class HelperBase:
     def get_correct_denum(self, feature):
         denum_to_match = feature["DENUM"]
         nr_crt_to_match = feature["NR_CRT"]
-        str_value = feature["STR"]
+        str_value = self.n(feature["STR"]).split(",")[0] if "," in feature["STR"] else feature["STR"]
+        str_full = feature["STR"]
         nr_scara = feature["NR_SCARA"]
 
         # If NR_SCARA is a string without commas, return DENUM immediately
         if isinstance(nr_scara, str) and "," not in nr_scara:
             return {
                 'denum': denum_to_match,
-                'nr_scara': nr_scara
+                'nr_scara': nr_scara,
+                'str': str_value
             }
 
         # Get the layer
@@ -180,7 +197,8 @@ class HelperBase:
             QgsMessageLog.logMessage("Layer GRUP_MASURA_XML_ not found!", "StalpiAssist", level=Qgis.Critical)
             return {
                 'denum': denum_to_match,
-                'nr_scara': nr_scara
+                'nr_scara': nr_scara,
+                'str': str_value
             }
 
         gr_layer = layer_list[0]  # Extract first matched layer
@@ -191,7 +209,8 @@ class HelperBase:
         if not matching_features:
             return {
                 'denum': denum_to_match,
-                'nr_scara': nr_scara
+                'nr_scara': nr_scara,
+                'str': str_value
             }
 
         QgsMessageLog.logMessage(f"Found {len(matching_features)} matching features for DENUM={denum_to_match}", "StalpiAssist", level=Qgis.Info)
@@ -206,13 +225,15 @@ class HelperBase:
             QgsMessageLog.logMessage(f"NR_CRT={nr_crt_to_match} not found in sorted features.", "StalpiAssist", level=Qgis.Warning)
             return {
                 'denum': denum_to_match,
-                'nr_scara': nr_scara
+                'nr_scara': nr_scara,
+                'str': str_value
             }
         except Exception as e:
             QgsMessageLog.logMessage(f"Error finding index: {e}", "StalpiAssist", level=Qgis.Critical)
             return {
                 'denum': denum_to_match,
-                'nr_scara': nr_scara
+                'nr_scara': nr_scara,
+                'str': str_value
             }
 
         # Extract NR_SCARA values and ensure they are properly indexed
@@ -226,11 +247,18 @@ class HelperBase:
         # Handle cases where NR_SCARA is a comma-separated string
         if isinstance(correct_nr_scara, str) and "," in correct_nr_scara:
             scara_values = correct_nr_scara.split(",")
-            correct_nr_scara = scara_values[index] if index < len(scara_values) else scara_values[0]  # Get nth index or fallback to first
+            
+            if len(self.n(str_full).split(",")) == len(scara_values):
+                str_parts = [self.n(part) for part in self.n(str_full).split(",")]
+                str_value = str_parts[index] if index < len(str_parts) else str_parts[0]
+                correct_nr_scara = scara_values[index] if index < len(scara_values) else scara_values[0]
+            else:
+                correct_nr_scara = scara_values[index] if index < len(scara_values) else scara_values[0]  # Get nth index or fallback to first
 
         return {
-            'denum': f"{str_value} {correct_nr_scara}".strip(),
-            'nr_scara': correct_nr_scara
+            'denum': self.n(f"{str_value} {correct_nr_scara}"),
+            'nr_scara': correct_nr_scara,
+            'str': str_value
         } 
 
 # MARK: PARSERS

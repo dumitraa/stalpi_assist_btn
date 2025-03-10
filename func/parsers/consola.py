@@ -2,6 +2,7 @@ from typing import List
 from openpyxl import load_workbook
 from qgis.core import QgsMessageLog, Qgis, QgsProject # type: ignore
 from ... import config
+from ..helper_functions import HelperBase
 
 class ConsolaJT:
     def __init__(self, id, class_id, id_bdi, nr_crt, denum, class_id_loc, id_loc, nr_crt_loc, tip_cons, alt, sursa_coord, data_coord, geo, long, lat, x_stereo_70, y_stereo_70, z_stereo_70):
@@ -32,6 +33,7 @@ class IgeaConsolaParser:
     def __init__(self, vector_layer):
         self.vector_layer = vector_layer
         self.console: List[ConsolaJT] = []
+        self.helper = HelperBase()
 
         self.mapping = {
             "Nr.crt": "nr_crt",
@@ -87,17 +89,6 @@ class IgeaConsolaParser:
     def get_data(self):
         return self.console
 
-    def resolve_mapping(self, parser, mapping):
-        if isinstance(mapping, tuple):
-            parts = [
-                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
-                for element in mapping
-            ]
-            return " ".join(filter(None, parts)).strip()
-        elif callable(mapping):
-            return mapping(parser)
-        return str(getattr(parser, mapping, "")).strip() if mapping else ""
-    
     def get_linie_value(self, feature):
         '''
         match with LINIE_JT ID_BDI and return LINIE_JT DENUM
@@ -133,7 +124,7 @@ class IgeaConsolaParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                value = self.resolve_mapping(stalp, mapping)
+                value = self.helper.resolve_mapping(stalp, mapping)
                 value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
@@ -147,7 +138,7 @@ class IgeaConsolaParser:
         
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip() in existing_headers:
+                if self.helper.n(header) in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
 
         workbook.save(excel_file)

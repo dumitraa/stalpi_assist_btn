@@ -57,9 +57,9 @@ class IgeaDeschidereParser:
             "ID_Locatia": lambda ds: ds.id_loc,
             "Locatia": lambda ds: ds.locatia,
             "Nr.crt_Inceput": "nr_crt_stp_inc",
-            "Stâlpul de inceput": lambda ds: ds.denum.split('-')[0].strip() if ds.denum else "",
+            "Stâlpul de inceput": lambda ds: self.helper.n(ds.denum.split('-')[0]) if ds.denum else "",
             "Nr.crt_sfarsit": "nr_crt_stp_term",
-            "Stâlpul terminal": lambda ds: ds.denum.split('-')[1].strip() if ds.denum else "",
+            "Stâlpul terminal": lambda ds: self.helper.n(ds.denum.split('-')[1]) if ds.denum else "",
             "ID_Tronson JT1": "id_tr_jt1",
             "Tronson JT1": "nr_crt_tr_jt1",
             "ID_Tronson JT2": "id_tr_jt2",
@@ -134,18 +134,6 @@ class IgeaDeschidereParser:
             
     def get_data(self):
         return self.deschideri
-    
-    def resolve_mapping(self, parser, mapping):
-        if isinstance(mapping, tuple):
-            parts = [
-                str(getattr(parser, element, "")).strip() if hasattr(parser, element) else str(element).strip()
-                for element in mapping
-            ]
-            return " ".join(filter(None, parts)).strip()
-        elif callable(mapping):
-            return mapping(parser)
-        return str(getattr(parser, mapping, "")).strip() if mapping else ""
-
 
     def write_to_excel_sheet(self, excel_file):        
         data = []
@@ -159,7 +147,7 @@ class IgeaDeschidereParser:
             row = []
             for header in headers:
                 mapping = self.mapping.get(header)
-                value = self.resolve_mapping(deschidere, mapping)
+                value = self.helper.resolve_mapping(deschidere, mapping)
                 value = "" if value in config.NULL_VALUES else value
                 row.append(value)
             data.append(row)
@@ -174,7 +162,7 @@ class IgeaDeschidereParser:
         # Write data to the sheet
         for row_idx, row_data in enumerate(data, start=start_row):
             for col_idx, (header, cell_value) in enumerate(zip(headers, row_data), start=1):
-                if header.strip(" ") in existing_headers:
+                if self.helper.n(header) in existing_headers:
                     sheet.cell(row=row_idx, column=existing_headers[header], value=cell_value if cell_value is not None else "")
         
         workbook.save(excel_file)
