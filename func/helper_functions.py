@@ -2,7 +2,8 @@ import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xlsxwriter
-from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis # type: ignore
+from PyQt5.QtCore import QVariant # type: ignore
+from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis, QgsFeature, QgsFields, QgsField # type: ignore
 from .. import config
 
 
@@ -119,7 +120,101 @@ class HelperBase:
         normalize the value by removing extra spaces and newlines
         '''
         return " ".join(value.split())
+    
+    def create_scratch_layer(self, name, geom_type):
+        crs = "EPSG:3844"
+        if geom_type == "Point":
+            uri = f"Point?crs={crs}"
+        elif geom_type == "LineString":
+            uri = f"LineString?crs={crs}"
+        else:
+            uri = f"None?crs={crs}"
 
+        layer = QgsVectorLayer(uri, name, "memory")
+        provider = layer.dataProvider()
+
+        fields = QgsFields()
+        fields.append(QgsField("nume_layer", QVariant.String))  
+        fields.append(QgsField("coloane", QVariant.String))     
+        fields.append(QgsField("feature_id", QVariant.Int))
+        provider.addAttributes(fields)
+        layer.updateFields()
+        return layer
+
+    def check_obligatory_fields(self):
+        layers_to_check = {
+            "STALP_JT": [
+                "DENUM", "NR_INS_STP", "PROP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", 
+                "TIP_CIR", "DESC_CTG_MT_JT", "NR_CIR", "UZURA_STP", "TIP_FUND", 
+                "ADAOS", "TIP_LEG_JT", "fid"],
+            "BRANS_FIRI_GRPM_JT": [
+                "fid", "TIP_BR", "TIP_COND", "JUD", "PRIM", "LOC", "TIP_STR", "STR", 
+                "NR_IMOB", "TIP_FIRI_BR", "LINIA_JT"],
+            "TRONSON_JT": [
+                "TIP_TR", "TIP_COND", "fid", "LINIA_JT"],
+            "FB pe C LES": [
+                "fid", "DENUM", "TIP_BR", "TIP_COND", "JUD", "PRIM", "LOC", "TIP_STR", 
+                "STR", "NR_IMOB", "SURSA_COORD", "DATA_COORD", "TIP_FIRI_BR", "LINIA_JT"],
+            "LINIE_JT": [
+                "ID_BDI", "DENUM"]
+        }
+
+        layer_types = {
+            "STALP_JT": "Point",
+            "FB pe C LES": "Point",
+            "TRONSON_JT": "LineString",
+            "BRANS_FIRI_GRPM_JT": "LineString",
+            "LINIE_JT": "None"
+        }
+
+        created_layers = {}
+
+        for layer_name, columns in layers_to_check.items():
+            layers = QgsProject.instance().mapLayersByName(layer_name.strip())
+            if not layers:
+                continue
+
+            layer = layers[0]
+            geom_type = layer_types[layer_name]
+
+            scratch_layer = None
+            for feature in layer.getFeatures():
+                incomplete_columns = set()          
+                for column in columns:
+                    if column not in [field.name() for field in layer.fields()]:
+                        continue
+                    value = feature[column]
+                    if value in config.NULL_VALUES:
+                        incomplete_columns.add(column)
+                        
+                if layer_name == "STALP_JT":
+                    nr_cir_fo_val = feature['NR_CIR_FO']
+                    prop_fo_val = feature['PROP_FO']
+                    
+                    if nr_cir_fo_val not in config.NULL_VALUES and prop_fo_val in config.NULL_VALUES:
+                        incomplete_columns.add('PROP_FO (NR_CIR_FO e completat)')
+                        
+                if incomplete_columns:
+                    if not scratch_layer:
+                        scratch_layer = self.create_scratch_layer(f"{layer_name}_coloane_necompletate", geom_type)
+                        created_layers[layer_name] = scratch_layer
+
+                    new_feature = QgsFeature(scratch_layer.fields())
+                    new_feature.setAttributes([
+                        layer_name,                         
+                        ", ".join(incomplete_columns),     
+                        feature.id()                            
+                    ])
+                    if geom_type != "None":
+                        geometry = feature.geometry()
+                        if geometry and geometry.isGeosValid():
+                            new_feature.setGeometry(geometry)
+                            
+                    scratch_layer.dataProvider().addFeature(new_feature)
+
+        for name, layer in created_layers.items():
+            QgsProject.instance().addMapLayer(layer)
+     
 
     def add_layer_to_project(self, layer):
         try:

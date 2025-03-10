@@ -354,6 +354,12 @@ class StalpiAssist:
         """Set base directory and update icons."""
         self.helper.remove_diacritics()
         self.helper.replace_empty_values()
+        
+        is_valid = self.helper.check_obligatory_fields()
+        if not is_valid:
+            QMessageBox.critical(None, "Eroare", "Unele coloane obligatorii au valori nule. Verifica layer-ul rezultat si completeaza coloanele.")
+            return
+        
         base_dir = QFileDialog.getExistingDirectory(None, "Select Base Directory", "")
         if base_dir:
             self.base_dir = base_dir
