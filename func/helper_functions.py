@@ -232,8 +232,8 @@ class HelperBase:
             QgsMessageLog.logMessage(f"NR_CRT={nr_crt_to_match} not found in sorted features.", "StalpiAssist", level=Qgis.Warning)
             return {
                 'denum': denum_to_match,
-                'nr_scara': nr_scara,
                 'short_denum': short_denum,
+                'nr_scara': nr_scara,
                 'str': str_value
             }
         except Exception as e:
@@ -270,6 +270,35 @@ class HelperBase:
             'nr_scara': correct_nr_scara,
             'str': str_value
         } 
+        
+    def replace_empty_values(self):
+        '''
+        replaces all empty values ('') with "NULL" from all fields
+        '''
+        layers = ["STALP_JT", "BRANS_FIRI_GRPM_JT", "FB pe C LES", "TRONSON_JT"]
+        
+        for layer_name in layers:
+            layer = QgsProject.instance().mapLayersByName(layer_name)[0]
+            if not layer:
+                continue
+
+            updates = {}
+            for feature in layer.getFeatures():
+                attrs = {}
+                for field in layer.fields():
+                    idx = layer.fields().indexOf(field.name())
+                    if idx == -1:
+                        continue
+
+                    original_value = feature[field.name()]
+                    if original_value == '':
+                        attrs[idx] = None
+                if attrs:
+                    updates[feature.id()] = attrs
+
+            layer.startEditing()
+            layer.dataProvider().changeAttributeValues(updates)
+            layer.commitChanges()
         
     def remove_diacritics(self):
         layers = ["STALP_JT", "BRANS_FIRI_GRPM_JT", "FB pe C LES"]
