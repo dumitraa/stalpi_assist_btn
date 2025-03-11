@@ -119,7 +119,7 @@ class HelperBase:
         '''
         normalize the value by removing extra spaces and newlines
         '''
-        return " ".join(value.split())
+        return value.replace("\n", " ").replace("\r", " ")
     
     def create_scratch_layer(self, name, geom_type):
         crs = "EPSG:3844"
@@ -166,11 +166,13 @@ class HelperBase:
             "BRANS_FIRI_GRPM_JT": "LineString",
             "LINIE_JT": "None"
         }
+        
+        is_valid = True
 
         created_layers = {}
 
         for layer_name, columns in layers_to_check.items():
-            layers = QgsProject.instance().mapLayersByName(layer_name.strip())
+            layers = QgsProject.instance().mapLayersByName(layer_name)
             if not layers:
                 continue
 
@@ -195,6 +197,7 @@ class HelperBase:
                         incomplete_columns.add('PROP_FO (NR_CIR_FO e completat)')
                         
                 if incomplete_columns:
+                    is_valid = False
                     if not scratch_layer:
                         scratch_layer = self.create_scratch_layer(f"{layer_name}_coloane_necompletate", geom_type)
                         created_layers[layer_name] = scratch_layer
@@ -215,6 +218,7 @@ class HelperBase:
         for name, layer in created_layers.items():
             QgsProject.instance().addMapLayer(layer)
      
+        return is_valid
 
     def add_layer_to_project(self, layer):
         try:
