@@ -328,7 +328,7 @@ class StalpiAssist:
         # Search for the layer by name in the current project
         layers = QgsProject.instance().mapLayersByName(layer_name)
         if not layers:
-            QgsMessageLog.logMessage(f"Layer '{layer_name}' not found in the project.", "StalpiAssist", level=Qgis.Warning)
+            QgsMessageLog.logMessage(f"Layer '{layer_name}' not found in the project.", "StalpiAssist", level=Qgis.Critical)
             return None
         
         # Get the first matching layer
@@ -600,7 +600,7 @@ class StalpiAssist:
         layers = QgsProject.instance().mapLayersByName('STALP_XML_')
 
         if not layers:
-            QgsMessageLog.logMessage("Layer 'STALP_XML_' not found in the project.", "StalpiAssist", level=Qgis.Warning)
+            QgsMessageLog.logMessage("Layer 'STALP_XML_' not found in the project.", "StalpiAssist", level=Qgis.Critical)
             return
 
         layer = layers[0] 
@@ -648,7 +648,7 @@ class StalpiAssist:
         # Prompt user for base text
         base_text, ok = QInputDialog.getText(None, "Enter Base Text", "Enter the base text for IMG_FILE fields:")
         if not ok or not base_text:
-            QgsMessageLog.logMessage("Operation canceled or no base text entered.", "StalpiAssist", Qgis.Warning)
+            QgsMessageLog.logMessage("Operation canceled or no base text entered.", "StalpiAssist", Qgis.Critical)
             return
 
         # Ensure the layer is editable
@@ -671,11 +671,11 @@ class StalpiAssist:
                 # Check if the new_name_field exists in the feature
                 if new_name_field not in feature.fields().names():
                     QgsMessageLog.logMessage(
-                        f"Feature {feature_id}: Field '{new_name_field}' does not exist. Skipping.",
+                        f"Feature {feature_id}: Field '{new_name_field}' does not exist.",
                         "StalpiAssist",
-                        Qgis.Warning
+                        Qgis.Critical
                     )
-                    continue
+                    return
 
                 new_name = feature[new_name_field]
 
@@ -687,8 +687,9 @@ class StalpiAssist:
                     QgsMessageLog.logMessage(
                         f"Feature {feature_id}: Field '{img_field}' not found in layer.",
                         "StalpiAssist",
-                        Qgis.Warning
+                        Qgis.Critical
                     )
+                    return
 
             if updates:
                 # Apply updates to the feature
@@ -1032,8 +1033,6 @@ class StalpiAssist:
         output_path = os.path.join(self.base_dir, "export.dxf")
         layer_names = ["FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"]
 
-        QgsMessageLog.logMessage("Starting DXF export...", "DXF Export", Qgis.Info)
-
         # Collect only the layers you want
         candidate_layers = QgsProject.instance().mapLayers().values()
         layers_for_export = [layer for layer in candidate_layers if layer.name() in layer_names]
@@ -1069,8 +1068,9 @@ class StalpiAssist:
                     QgsMessageLog.logMessage(
                         f"Error transforming extent for layer {layer.name()}: {str(e)}",
                         "DXF Export",
-                        Qgis.Warning
+                        Qgis.Critical
                     )
+                    return
             else:
                 extent.combineExtentWith(layer_extent)
 
@@ -1081,7 +1081,7 @@ class StalpiAssist:
         )
 
         if extent.isEmpty():
-            QgsMessageLog.logMessage("Computed extent is empty. Export aborted.", "DXF Export", Qgis.Warning)
+            QgsMessageLog.logMessage("Computed extent is empty. Export aborted.", "DXF Export", Qgis.Critical)
             return
 
         # Prepare map settings
@@ -1109,8 +1109,6 @@ class StalpiAssist:
         # Add layers for export
         dxf_export.addLayers([QgsDxfExport.DxfLayer(lyr) for lyr in layers_for_export])
 
-        QgsMessageLog.logMessage("DXF Export setup complete. Attempting to write file...", "DXF Export", Qgis.Info)
-
         # Open DXF file for writing
         file = QFile(output_path)
         if not file.open(QFile.WriteOnly | QFile.Text):
@@ -1122,10 +1120,8 @@ class StalpiAssist:
         encoding = QTextCodec.codecForName("UTF-8").name().data().decode("utf-8")
         success = dxf_export.writeToFile(file, encoding)
 
-        QgsMessageLog.logMessage(f"DXF export success: {success}", "DXF Export", Qgis.Info)
         file.close()
 
-        QgsMessageLog.logMessage(f"DXF file exported successfully at {output_path}", "DXF Export", Qgis.Success)
         QMessageBox.information(self.iface.mainWindow(), "DXF Export",
         f"DXF file exported successfully at {output_path}"
         )

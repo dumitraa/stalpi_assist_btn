@@ -149,7 +149,7 @@ class IgeaBransamentParser:
 
     def get_stalpi_value(self, bransament_feature):
         if not bransament_feature.get_geometry():
-            QgsMessageLog.logMessage("Bransament feature has no geometry.", "StalpiAssist", level=Qgis.Warning)
+            QgsMessageLog.logMessage("Bransament feature has no geometry.", "StalpiAssist", level=Qgis.Critical)
             return ""
 
         stalp_layer = QgsProject.instance().mapLayersByName('STALP_XML_')[0]
@@ -164,7 +164,7 @@ class IgeaBransamentParser:
         ]
 
         if not intersecting_features:
-            QgsMessageLog.logMessage("No intersecting features found.", "StalpiAssist", level=Qgis.Warning)
+            QgsMessageLog.logMessage("No intersecting features found.", "StalpiAssist", level=Qgis.Critical)
             return ""
 
         aggregated_value = [
@@ -188,7 +188,7 @@ class IgeaBransamentParser:
         ]
         
         if not matching_feature:
-            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Warning)
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Critical)
             return ""
         
         return matching_feature[0]['DENUM'] if matching_feature else ""

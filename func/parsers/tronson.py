@@ -101,7 +101,7 @@ class IgeaTronsonParser:
                 nr_crt_fin_tr = attributes.get('NR_CRT_FIN_TR'),
                 tip_tr = attributes.get('TIP_TR'),
                 tip_cond = attributes.get('TIP_COND'),
-                lung_tr = attributes.get('LUNG_TR'),
+                lung_tr = attributes.get('LUNG_TR').replace('.', ','),
                 geo = attributes.get('GEO'),
                 sursa_coord = attributes.get('SURSA_COORD'),
                 data_coord = attributes.get('DATA_COORD'),
@@ -168,7 +168,7 @@ class IgeaTronsonParser:
         ]
         
         if not matching_feature:
-            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Warning)
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Critical)
             return ""
         
         return matching_feature[0]['DENUM'] if matching_feature else ""

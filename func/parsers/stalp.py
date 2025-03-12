@@ -256,7 +256,7 @@ class IgeaStalpParser:
         ]
         
         if not matching_feature:
-            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Warning)
+            QgsMessageLog.logMessage("No matching feature found.", "StalpiAssist", level=Qgis.Critical)
             return ""
         
         return matching_feature[0]['DENUM'] if matching_feature else ""
