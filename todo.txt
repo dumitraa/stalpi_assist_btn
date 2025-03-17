@@ -1,3 +1,8 @@
 - export dwg and kmz - firida macheta, bransamente macheta, stalpi macheta, tronson macheta 
     > dxf - add square for STP. 0 + add bigger coordinates for stalp (so that he wont have to use the scr from scr_dwg)
     > kml - color and pin ? <<<<<<<<<<
+
+
+- culori categorizare tronson_xml_ id_loc
+- numerotare stalpi
+- bransamente de tip bmpm - micsorare la 1m (tot lipit de stalp)

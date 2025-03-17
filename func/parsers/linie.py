@@ -2,9 +2,13 @@ from typing import List
 from openpyxl import load_workbook
 from ... import config
 from ..helper_functions import HelperBase
+from qgis.core import QgsMessageLog, Qgis # type: ignore
+import os
+import pandas as pd
+from pathlib import Path
 
 class LinieJT:
-    def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, class_id_inst_sup, id_inst_sup, cod_ad_energ, niv_ten, tip_lin, an_pif_init, nr_iv):
+    def __init__(self, id, class_id, id_bdi, nr_crt, denum, prop, class_id_loc, id_loc, class_id_inst_sup, desc_inst_sup, cod_ad_energ, niv_ten, tip_lin, an_pif_init, nr_iv):
         self.id = id
         self.class_id = class_id
         self.id_bdi = id_bdi
@@ -14,7 +18,7 @@ class LinieJT:
         self.class_id_loc = class_id_loc
         self.id_loc = id_loc
         self.class_id_inst_sup = class_id_inst_sup
-        self.id_inst_sup = id_inst_sup
+        self.desc_inst_sup = desc_inst_sup
         self.cod_ad_energ = cod_ad_energ
         self.niv_ten = niv_ten
         self.tip_lin = tip_lin
@@ -37,7 +41,7 @@ class IgeaLinieParser:
             "Descrierea BDI": "denum",
             "Proprietar": lambda ln: ln.prop if ln.prop not in config.NULL_VALUES else "DEER",
             "Locatia": "id_loc",
-            "Descrierea instalatiei superioare": lambda ln: "",
+            "Descrierea instalatiei superioare": "desc_inst_sup",
             "Nivel tensiune (kV)": "niv_ten",
             "Tipul liniei": "tip_lin",
         }
@@ -61,10 +65,10 @@ class IgeaLinieParser:
                 class_id_loc=attributes.get("CLASS_ID_LOC"),
                 id_loc=attributes.get("ID_LOC"),
                 class_id_inst_sup=attributes.get("CLASS_ID_INST_SUP"),
-                id_inst_sup=attributes.get("ID_INST_SUP"),
+                desc_inst_sup=self.get_descriere(feature),
                 cod_ad_energ=attributes.get("COD_AD_ENERG"),
-                niv_ten=attributes.get("NIV_TEN"),
-                tip_lin=attributes.get("TIP_LIN"),
+                niv_ten='0,4',
+                tip_lin='LEA JT',
                 an_pif_init=attributes.get("AN_PIF_INIT"),
                 nr_iv=attributes.get("NR_IV")
             )
@@ -76,6 +80,49 @@ class IgeaLinieParser:
     def get_data(self):
         return self.linii
 
+    def load_lookup_values(self, xlsx_path):
+        """
+        Loads values from the given Excel file and returns a set of lookup values.
+        """
+        if not os.path.exists(xlsx_path):
+            QgsMessageLog.logMessage(f"File not found: {xlsx_path}", "StalpiAssist", level=Qgis.Critical)
+            return set()
+
+        try:
+            df = pd.read_excel(xlsx_path, usecols=[0], dtype=str)
+            return set(df.iloc[:, 0].dropna().str.strip())
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error loading Excel file: {e}", "StalpiAssist", level=Qgis.Critical)
+            return set()
+
+    @staticmethod
+    def plugin_path(*args) -> Path:
+        """ Return the path to the plugin root folder or file. """
+        path = Path(__file__).resolve().parent
+        for item in args:
+            path = path.joinpath(item)
+        return path
+
+    def get_descriere(self, feature):
+        """
+        Extracts the matching substring from feature["DENUM"] if it exists in the lookup values.
+        """
+        denum_value = str(feature["DENUM"]).strip()
+        if not denum_value:
+            return None
+
+        # Ensure lookup values are loaded once and cached
+        if not hasattr(self, '_lookup_values'):
+            xlsx_path = self.plugin_path('..', 'templates', 'pt.xlsx')
+            self._lookup_values = self.load_lookup_values(xlsx_path)
+
+        # Check for matches in the lookup set
+        for lookup in self._lookup_values:
+            if lookup in denum_value:
+                return lookup  # Return first found match
+
+        QgsMessageLog.logMessage(f"No match found for '{denum_value}'", "StalpiAssist", level=Qgis.Critical)
+        return ''  # No match found
 
     def write_to_excel_sheet(self, excel_file):
         data = []

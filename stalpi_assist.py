@@ -463,7 +463,30 @@ class StalpiAssist:
 
         QMessageBox.information(None, "Success", "Fields completed successfully!")
 
-
+    def apply_categorization(self, layer, field_name):
+            # Apply categorization by a specific field to layer
+            unique_values = layer.uniqueValues(layer.fields().lookupField(field_name))
+            categories = []
+            
+            predefined_colors = [
+                QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255),
+                QColor(255, 255, 0), QColor(255, 165, 0), QColor(255, 20, 147),
+                QColor(0, 255, 255), QColor(128, 0, 128), QColor(0, 128, 0),
+                QColor(0, 0, 128), QColor(75, 0, 130), QColor(255, 105, 180)
+            ]
+            random.shuffle(predefined_colors)
+            
+            for i, value in enumerate(unique_values):
+                if i >= len(predefined_colors):
+                    break
+                symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+                symbol.setColor(predefined_colors[i])
+                symbol.setWidth(1.25)
+                categories.append(QgsRendererCategory(value, symbol, str(value)))
+            
+            renderer = QgsCategorizedSymbolRenderer(field_name, categories)
+            layer.setRenderer(renderer)
+            layer.triggerRepaint()
 
     def run_tronson_model(self):
         params = {
@@ -500,30 +523,7 @@ class StalpiAssist:
                 no_offset_layer.setName("NO_OFFSET_TRONSON_XML_")
                 QgsProject.instance().addMapLayer(no_offset_layer)
 
-                # Apply categorization by "ID_LOC" only to TRONSON_XML_
-                field_name = "ID_LOC"
-                unique_values = scratch_layer.uniqueValues(scratch_layer.fields().lookupField(field_name))
-                categories = []
-                
-                predefined_colors = [
-                    QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255),
-                    QColor(255, 255, 0), QColor(255, 165, 0), QColor(255, 20, 147),
-                    QColor(0, 255, 255), QColor(128, 0, 128), QColor(0, 128, 0),
-                    QColor(0, 0, 128), QColor(75, 0, 130), QColor(255, 105, 180)
-                ]
-                random.shuffle(predefined_colors)
-                
-                for i, value in enumerate(unique_values):
-                    if i >= len(predefined_colors):
-                        break
-                    symbol = QgsSymbol.defaultSymbol(scratch_layer.geometryType())
-                    symbol.setColor(predefined_colors[i])
-                    symbol.setWidth(1.25)
-                    categories.append(QgsRendererCategory(value, symbol, str(value)))
-                
-                renderer = QgsCategorizedSymbolRenderer(field_name, categories)
-                scratch_layer.setRenderer(renderer)
-                scratch_layer.triggerRepaint()
+                self.apply_categorization(scratch_layer, "ID_LOC")
 
             else:
                 raise TypeError("Unexpected output type from processing.run")
@@ -986,8 +986,12 @@ class StalpiAssist:
             if not layer:
                 print(f"Layer '{layer_name}' not found!")
                 continue
-            
             layer = layer[0]
+            
+            if layer_name == "TRONSON MACHETA":
+                self.apply_categorization(layer, "ID_Locatia")
+                break
+            
             color = QColor(unique_colors[i])  # Use unique color
             
             settings = QgsPalLayerSettings()
