@@ -396,6 +396,31 @@ class HelperBase:
             layer.startEditing()
             layer.dataProvider().changeAttributeValues(updates)
             layer.commitChanges()
+            
+    def delete_id_bdi(self):
+        layers = ["STALP_JT", "BRANS_FIRI_GRPM_JT", "FB pe C LES", "TRONSON_JT"]
+        
+        for layer_name in layers:
+            layer = QgsProject.instance().mapLayersByName(layer_name)[0]
+            if not layer:
+                continue
+
+            updates = {}
+            for feature in layer.getFeatures():
+                attrs = {}
+                for field in layer.fields():
+                    idx = layer.fields().indexOf(field.name())
+                    if idx == -1:
+                        continue
+
+                    if field.name() == "ID_BDI":
+                        attrs[idx] = None
+                if attrs:
+                    updates[feature.id()] = attrs
+
+            layer.startEditing()
+            layer.dataProvider().changeAttributeValues(updates)
+            layer.commitChanges()
         
     def remove_diacritics(self):
         layers = ["STALP_JT", "BRANS_FIRI_GRPM_JT", "FB pe C LES"]

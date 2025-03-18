@@ -354,6 +354,7 @@ class StalpiAssist:
         """Set base directory and update icons."""
         self.helper.remove_diacritics()
         self.helper.replace_empty_values()
+        self.helper.delete_id_bdi()
         
         is_valid = self.helper.check_obligatory_fields()
         if not is_valid:
