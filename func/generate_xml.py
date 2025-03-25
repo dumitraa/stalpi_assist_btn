@@ -226,7 +226,7 @@ class GenerateXMLWorker(QThread):
                         if field.name() == "PROP_CATV" or field.name() == "PROP_LTC":
                             field_value = "0"
                         if field.name() == "ADAOS":
-                            if field_value in ["Lemn", "Metal", "Beton"]:
+                            if field_value.lower() in ["lemn", "metal", "beton"]:
                                 field_value = "Da"
 
                     if str(xml_template_path).endswith("linie_jt.xml"):
