@@ -3,6 +3,7 @@ from openpyxl import load_workbook
 from ... import config
 from ..helper_functions import HelperBase
 from qgis.core import QgsMessageLog, Qgis # type: ignore
+from qgis.PyQt.QtWidgets import QMessageBox # type: ignore
 import os
 import pandas as pd
 from pathlib import Path
@@ -37,7 +38,7 @@ class IgeaLinieParser:
         
         self.mapping = {
             "ID": "id_bdi",
-            "Denumire": lambda ln: "",
+            "Denumire": lambda _: "",
             "Descrierea BDI": "denum",
             "Proprietar": lambda ln: ln.prop if ln.prop not in config.NULL_VALUES else "DEER",
             "Locatia": "id_loc",
@@ -107,7 +108,7 @@ class IgeaLinieParser:
         """
         Extracts the matching substring from feature["DENUM"] if it exists in the lookup values.
         """
-        denum_value = str(feature["DENUM"]).strip()
+        denum_value = str(feature["DENUM"]).strip().replace("_", " ")
         if not denum_value:
             return None
 
@@ -118,11 +119,13 @@ class IgeaLinieParser:
 
         # Check for matches in the lookup set
         for lookup in self._lookup_values:
-            if lookup in denum_value:
+            if lookup.replace("_", " ") in denum_value:
                 return lookup  # Return first found match
 
-        QgsMessageLog.logMessage(f"No match found for '{denum_value}'", "StalpiAssist", level=Qgis.Critical)
-        return ''  # No match found
+        QMessageBox.critical(None, "Avertizare", f"Nu a fost gasit niciun match pentru valoarea '{denum_value}'. S-a folosit denumirea proiectului")
+        project_name = self.helper.get_project_name()
+        
+        return project_name  # No match found
 
     def write_to_excel_sheet(self, excel_file):
         data = []

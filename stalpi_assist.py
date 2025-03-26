@@ -93,6 +93,7 @@ class StalpiAssist:
         :type iface: QgsInterface
         """
         # Save reference to the QGIS interface
+        self.pt_name = None
         self.iface = iface
         self.context = QgsProcessingContext()
         # initialize plugin directory
@@ -411,6 +412,8 @@ class StalpiAssist:
         denumire, ok = QInputDialog.getText(None, "Input Descriere BDI", "Introduce Descrierea BDI:")
         if not ok or not denumire:
             return
+        
+        self.pt_name = denumire
         
         # Load the Excel template
         xlsx_path = self.plugin_path('func', 'templates', 'bd.xlsx')
@@ -999,6 +1002,7 @@ class StalpiAssist:
 
             settings = QgsPalLayerSettings()
             settings.fieldName = "Descrierea BDI"
+                
             settings.enabled = True
 
             text_format = QgsTextFormat()

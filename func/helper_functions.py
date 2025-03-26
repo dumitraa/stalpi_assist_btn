@@ -1,9 +1,10 @@
 import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-import xlsxwriter
+import xlsxwriter # type: ignore
 from PyQt5.QtCore import QVariant # type: ignore
 from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis, QgsFeature, QgsFields, QgsField # type: ignore
+from PyQt5.QtWidgets import QMessageBox # type: ignore
 from .. import config
 
 
@@ -13,6 +14,14 @@ class HelperBase:
         self.processor = None
         
     # MARK: DEFAULT
+    def get_project_name(self):
+        project = QgsProject.instance()
+        if project.fileName():
+            return os.path.splitext(os.path.basename(project.fileName()))[0]
+        
+        QMessageBox.critical(None, "Eroare", "Proiectul nu este salvat!")
+        return ""
+    
     # Generate xml/xlsx files, replace blanks with apostrophes
     def generate_files(self, layers, base_dir):
         """
