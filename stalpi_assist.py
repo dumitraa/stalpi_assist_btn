@@ -58,7 +58,10 @@ from qgis.core import ( # type: ignore
     QgsCoordinateReferenceSystem,
     QgsMapSettings,
     QgsCoordinateTransform,
-    QgsWkbTypes
+    QgsWkbTypes,
+    QgsMarkerSymbol,
+    QgsLineSymbol,
+    QgsSingleSymbolRenderer
 )
 from PyQt5.QtCore import QSize # type: ignore
 
@@ -957,81 +960,137 @@ class StalpiAssist:
         
     def export_dxf_kml(self):
         self.stylize_layers()
-    
-    
+
     def stylize_layers(self):
         layers = [
-            "FIRIDA MACHETA", "BRANSAMENTE MACHETA", "STALPI MACHETA", "TRONSON MACHETA"
+            "FIRIDA MACHETA", 
+            "BRANSAMENTE MACHETA", 
+            "STALPI MACHETA", 
+            "TRONSON MACHETA"
         ]
-        
+
+        # colors: red, green, blue, yellow, pink, cyan, purple, green, blue
         bright_colors = [
-            "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
-            "#FFA500", "#8A2BE2", "#DC143C", "#32CD32"
+            "#FF0000", "#00FF00", "#0000FF", "#FFFF00",
+            "#00FFFF", "#FFA500", "#8A2BE2", "#DC143C"
         ]
-        
+
         if len(layers) > len(bright_colors):
-            
             bright_colors = [
                 "#%02x%02x%02x" % (
                     int(255 * r), int(255 * g), int(255 * b)
                 )
-                for r, g, b in [colorsys.hsv_to_rgb(i / len(layers), 1, 1) for i in range(len(layers))]
+                for r, g, b in [
+                    colorsys.hsv_to_rgb(i / len(layers), 1, 1) 
+                    for i in range(len(layers))
+                ]
             ]
-        
-        unique_colors = random.sample(bright_colors, len(layers))  # Pick unique colors
-        
+        unique_colors = random.sample(bright_colors, len(layers))
+
         project = QgsProject.instance()
-        
+
         for i, layer_name in enumerate(layers):
-            layer = project.mapLayersByName(layer_name)
-            if not layer:
-                print(f"Layer '{layer_name}' not found!")
+            matching_layers = project.mapLayersByName(layer_name)
+            if not matching_layers:
                 continue
-            layer = layer[0]
-            
-            if layer_name == "TRONSON MACHETA":
-                self.apply_categorization(layer, "ID_Locatia")
-                break
-            
-            color = QColor(unique_colors[i])  # Use unique color
-            
+            layer = matching_layers[0]
+
+            color = QColor(unique_colors[i])
+
             settings = QgsPalLayerSettings()
             settings.fieldName = "Descrierea BDI"
             settings.enabled = True
-            
+
             text_format = QgsTextFormat()
             text_format.setSize(50)
             text_format.setColor(color)
-            
+
             buffer = QgsTextBufferSettings()
             buffer.setEnabled(True)
             buffer.setSize(1)
             buffer.setColor(QColor("black"))
             text_format.setBuffer(buffer)
-            
+
             settings.setFormat(text_format)
-            
-            # Ensure proper labeling behavior for lines
+
             if layer.geometryType() == QgsWkbTypes.LineGeometry:
                 settings.placement = QgsPalLayerSettings.Curved
-                settings.isObstacle = False  # Prevents obstacles for labels
-            
+                settings.isObstacle = False
+
             labeling = QgsVectorLayerSimpleLabeling(settings)
             layer.setLabeling(labeling)
             layer.setLabelsEnabled(True)
-            
+
             layer.setCustomProperty("labeling", "pal")
             project.layerTreeRoot().findLayer(layer.id()).setCustomProperty("labeling", "pal")
             
-            layer.triggerRepaint()
-            print(f"Updated layer: {layer_name} with label color {unique_colors[i]}")
+            if layer_name == "TRONSON MACHETA":
+                self.apply_categorization(layer, "ID_Locatia")
+                continue
 
-        # Force map refresh
+            if layer_name == "FIRIDA MACHETA":
+                symbol = QgsMarkerSymbol.createSimple({
+                    'name': 'circle', 
+                    'size': '3',
+                    'color': '#0000FF'
+                    })
+
+                renderer = layer.renderer()
+                if renderer is None or renderer.type() != 'singleSymbol':
+                    renderer = QgsSingleSymbolRenderer(symbol)
+                else:
+                    renderer.setSymbol(symbol)
+                layer.setRenderer(renderer)
+
+            elif layer_name == "STALPI MACHETA":
+                field_name = "Denumire"
+                categories = []
+
+                pin_symbol = QgsMarkerSymbol.createSimple({
+                    'name': 'star',
+                    'size': '8',
+                    'color': 'red'})
+
+                cat_zero = QgsRendererCategory("0", pin_symbol, "0")
+                categories.append(cat_zero)
+
+                green_dot_symbol = QgsMarkerSymbol.createSimple({
+                    'name': 'circle', 
+                    'size': '3', 
+                    'color': '#00FF00'
+                })
+                cat_other = QgsRendererCategory(
+                    None,
+                    green_dot_symbol,
+                    "other"
+                )
+                categories.append(cat_other)
+
+                cat_renderer = QgsCategorizedSymbolRenderer(field_name, categories)
+                layer.setRenderer(cat_renderer)
+
+
+            elif layer_name in ["BRANSAMENTE MACHETA", "TRONSON MACHETA"]:
+                if layer.geometryType() == QgsWkbTypes.LineGeometry:
+                    thick_line = QgsLineSymbol.createSimple({
+                        'width': '1.25',
+                        'color': '#FF8000'
+                    })
+                    renderer = layer.renderer()
+                    if renderer is None or renderer.type() != 'singleSymbol':
+                        renderer = QgsSingleSymbolRenderer(thick_line)
+                    else:
+                        renderer.setSymbol(thick_line)
+                    layer.setRenderer(renderer)
+
+            layer.triggerRepaint()
+            
         self.iface.mapCanvas().refreshAllLayers()
+        self.iface.mapCanvas().refresh()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
         self.export_to_dxf()
-        # self.export_to_kml()
+
 
 
     def export_to_dxf(self):
@@ -1042,14 +1101,8 @@ class StalpiAssist:
         candidate_layers = QgsProject.instance().mapLayers().values()
         layers_for_export = [layer for layer in candidate_layers if layer.name() in layer_names]
 
-        QgsMessageLog.logMessage(
-            f"Layers selected for export: {[lyr.name() for lyr in layers_for_export]}",
-            "DXF Export",
-            Qgis.Info
-        )
-
         if not layers_for_export:
-            QMessageBox.critical(self.iface.mainWindow(), "DXF Export", "No layers found for export.")
+            QMessageBox.critical(self.iface.mainWindow(), "StalpiAssist", "No layers found for export.")
             return
 
         # Make an empty extent
@@ -1078,12 +1131,6 @@ class StalpiAssist:
                     return
             else:
                 extent.combineExtentWith(layer_extent)
-
-        QgsMessageLog.logMessage(
-            f"Combined extent in EPSG:3844: {extent.toString()}",
-            "DXF Export",
-            Qgis.Info
-        )
 
         if extent.isEmpty():
             QgsMessageLog.logMessage("Computed extent is empty. Export aborted.", "DXF Export", Qgis.Critical)
