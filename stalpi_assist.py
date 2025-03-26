@@ -1030,7 +1030,7 @@ class StalpiAssist:
 
             if layer_name == "FIRIDA MACHETA":
                 symbol = QgsMarkerSymbol.createSimple({
-                    'name': 'circle', 
+                    'name': 'triangle', 
                     'size': '3',
                     'color': '#0000FF'
                     })
@@ -1073,7 +1073,7 @@ class StalpiAssist:
             elif layer_name in ["BRANSAMENTE MACHETA", "TRONSON MACHETA"]:
                 if layer.geometryType() == QgsWkbTypes.LineGeometry:
                     thick_line = QgsLineSymbol.createSimple({
-                        'width': '1.25',
+                        'width': '0.6',
                         'color': '#FF8000'
                     })
                     renderer = layer.renderer()
