@@ -1001,7 +1001,21 @@ class StalpiAssist:
             color = QColor(unique_colors[i])
 
             settings = QgsPalLayerSettings()
-            settings.fieldName = "Descrierea BDI"
+            
+            #TODO : CHECK IF THIS IS OK OR NOT
+            if layer_name == "STALPI MACHETA":
+                if not self.pt_name:
+                    self.pt_name = self.helper.get_project_name()
+                
+                expression = f'''
+                CASE 
+                    WHEN "Descrierea BDI" like '%STP. 0%' THEN '{self.pt_name}'
+                    ELSE "Descrierea BDI"
+                END
+                '''
+                settings.fieldName = expression
+            else:
+                settings.fieldName = "Descrierea BDI"
                 
             settings.enabled = True
 
