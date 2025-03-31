@@ -1009,7 +1009,7 @@ class StalpiAssist:
                 
                 expression = f'''
                 CASE 
-                    WHEN "Descrierea BDI" like '%STP. 0%' THEN '{self.pt_name}'
+                    WHEN "Descrierea BDI" like '%STP. 0%' THEN '{self.pt_name}\n' + "Descrierea BDI"
                     ELSE "Descrierea BDI"
                 END
                 '''
