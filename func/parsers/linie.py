@@ -123,7 +123,7 @@ class IgeaLinieParser:
                 return lookup  # Return first found match
 
         QMessageBox.critical(None, "Avertizare", f"Nu a fost gasit niciun match pentru valoarea '{denum_value}'. S-a folosit denumirea proiectului")
-        project_name = self.helper.get_project_name()
+        project_name = self.helper.get_pt_name()
         
         return project_name  # No match found
 

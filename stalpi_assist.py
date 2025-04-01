@@ -1005,7 +1005,7 @@ class StalpiAssist:
             #TODO : CHECK IF THIS IS OK OR NOT
             if layer_name == "STALPI MACHETA":
                 if not self.pt_name:
-                    self.pt_name = self.helper.get_project_name()
+                    self.pt_name = self.helper.get_pt_name()
                 
                 expression = f'''
                 CASE 
@@ -1014,6 +1014,7 @@ class StalpiAssist:
                 END
                 '''
                 settings.fieldName = expression
+                settings.isExpression = True
             else:
                 settings.fieldName = "Descrierea BDI"
                 
@@ -1059,7 +1060,7 @@ class StalpiAssist:
                 else:
                     renderer.setSymbol(symbol)
                 layer.setRenderer(renderer)
-
+                
             elif layer_name == "STALPI MACHETA":
                 field_name = "Denumire"
                 categories = []
@@ -1086,8 +1087,7 @@ class StalpiAssist:
 
                 cat_renderer = QgsCategorizedSymbolRenderer(field_name, categories)
                 layer.setRenderer(cat_renderer)
-
-
+            
             elif layer_name in ["BRANSAMENTE MACHETA", "TRONSON MACHETA"]:
                 if layer.geometryType() == QgsWkbTypes.LineGeometry:
                     thick_line = QgsLineSymbol.createSimple({
@@ -1101,10 +1101,12 @@ class StalpiAssist:
                         renderer.setSymbol(thick_line)
                     layer.setRenderer(renderer)
 
+            layer.setCustomProperty("labeling/needsUpdate", True)
             layer.triggerRepaint()
             
         self.iface.mapCanvas().refreshAllLayers()
         self.iface.mapCanvas().refresh()
+        self.iface.mapCanvas().update()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
 
         self.export_to_dxf()

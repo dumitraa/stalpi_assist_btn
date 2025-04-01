@@ -6,6 +6,8 @@ from PyQt5.QtCore import QVariant # type: ignore
 from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog, Qgis, QgsFeature, QgsFields, QgsField # type: ignore
 from PyQt5.QtWidgets import QMessageBox # type: ignore
 from .. import config
+import pandas as pd
+from pathlib import Path
 
 
 class HelperBase:
@@ -13,6 +15,63 @@ class HelperBase:
         super().__init__()
         self.processor = None
         
+        
+    @staticmethod
+    def plugin_path(*args) -> Path:
+        """ Return the path to the plugin root folder or file. """
+        path = Path(__file__).resolve().parent
+        for item in args:
+            path = path.joinpath(item)
+        return path
+    
+    def get_pt_name(self):
+        linie_jt = QgsProject.instance().mapLayersByName("LINIE_JT")
+        if not linie_jt:
+            return ""
+        
+        linie_jt = linie_jt[0]
+        first_feature = next(linie_jt.getFeatures())
+        
+        return self.get_descriere(first_feature)
+        
+    def load_lookup_values(self, xlsx_path):
+        """
+        Loads values from the given Excel file and returns a set of lookup values.
+        """
+        if not os.path.exists(xlsx_path):
+            QgsMessageLog.logMessage(f"File not found: {xlsx_path}", "StalpiAssist", level=Qgis.Critical)
+            return set()
+
+        try:
+            df = pd.read_excel(xlsx_path, usecols=[0], dtype=str)
+            return set(df.iloc[:, 0].dropna().str.strip())
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error loading Excel file: {e}", "StalpiAssist", level=Qgis.Critical)
+            return set()
+
+    def get_descriere(self, feature):
+        """
+        Extracts the matching substring from feature["DENUM"] if it exists in the lookup values.
+        """
+        denum_value = str(feature["DENUM"]).replace("_", " ")
+        if not denum_value:
+            return None
+
+        # Ensure lookup values are loaded once and cached
+        if not hasattr(self, '_lookup_values'):
+            xlsx_path = self.plugin_path('templates', 'pt.xlsx')
+            self._lookup_values = self.load_lookup_values(xlsx_path)
+
+        # Check for matches in the lookup set
+        for lookup in self._lookup_values:
+            if lookup.replace("_", " ") in denum_value:
+                return lookup  # Return first found match
+
+        QMessageBox.critical(None, "Avertizare", f"Nu a fost gasit niciun match pentru valoarea '{denum_value}' S-a folosit denumirea proiectului")
+        project_name = self.get_project_name()
+        
+        return project_name  # No match found
+    
     # MARK: DEFAULT
     def get_project_name(self):
         project = QgsProject.instance()
