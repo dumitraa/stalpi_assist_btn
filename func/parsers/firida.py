@@ -62,7 +62,7 @@ class IgeaFiridaParser:
             "Nr.crt": "nr_crt",
             "Identificator": lambda fr: fr.iden['correct'],
             "Descrierea BDI": lambda fr: "FR " if fr.rol_firi == "de retea" else "FB " + fr.iden['correct'],
-            "ID_Locatia": "nr_crt_loc",
+            "ID_Locatia": lambda fr: fr.nr_crt_loc if fr.nr_crt_loc else fr.id_inst_sup,
             "Locatia": lambda fr: "BR " + fr.iden['correct'],
             "ID_Descrierea instalatiei superioare": "id_inst_sup",
             "Descrierea instalatiei superioare": lambda fr: self.get_linie_value(fr),
