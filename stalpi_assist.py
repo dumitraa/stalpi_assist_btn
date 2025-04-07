@@ -356,6 +356,21 @@ class StalpiAssist:
     
     def set_base_dir(self):
         """Set base directory and update icons."""
+        st_layer = self.get_layer_by_name("STALP_JT")
+        br_layer = self.get_layer_by_name("BRANS_FIRI_GRPM_JT")
+        tr_layer = self.get_layer_by_name("TRONSON_JT")
+        linie_layer = self.get_layer_by_name("LINIE_JT")
+        fb_layer = self.get_layer_by_name("FB pe C LES")
+        
+        missing_layers = []
+        for layer in [st_layer, br_layer, tr_layer, linie_layer, fb_layer]:
+            if not layer:
+                missing_layers.append(layer.name())
+                
+        if missing_layers:
+            QMessageBox.critical(None, "Eroare", f"Urmatoarele layere lipsesc: {', '.join(missing_layers)}")
+            return
+        
         self.helper.remove_diacritics()
         self.helper.replace_empty_values()
         self.helper.delete_id_bdi()
@@ -1051,14 +1066,6 @@ class StalpiAssist:
                 field_name = "Denumire"
                 categories = []
 
-                pin_symbol = QgsMarkerSymbol.createSimple({
-                    'name': 'star',
-                    'size': '8',
-                    'color': 'red'})
-
-                cat_zero = QgsRendererCategory("0", pin_symbol, "0")
-                categories.append(cat_zero)
-
                 green_dot_symbol = QgsMarkerSymbol.createSimple({
                     'name': 'circle', 
                     'size': '3', 
@@ -1067,7 +1074,7 @@ class StalpiAssist:
                 cat_other = QgsRendererCategory(
                     None,
                     green_dot_symbol,
-                    "other"
+                    'stp'
                 )
                 categories.append(cat_other)
 
