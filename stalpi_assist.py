@@ -559,6 +559,16 @@ class StalpiAssist:
 
     def run_brans_model(self):
         """Run Brans model with a progress window."""
+        # complete @row_number + 1000 field in NR_CRT for - FB pe c les
+        fb_layer = self.get_layer_by_name("FB pe C LES")
+        if fb_layer:
+            fb_layer.startEditing()
+            for index, feat in enumerate(fb_layer.getFeatures(), start=1):
+                feat["NR_CRT"] = index + 1000
+                fb_layer.updateFeature(feat)
+            fb_layer.commitChanges()
+        else:
+            QMessageBox.critical(None, "Error", "Layer 'FB pe C LES' not found in the project.")
         
         params = {
             "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
@@ -610,6 +620,7 @@ class StalpiAssist:
 
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+        
 
     def copy_rename_pictures(self):
         new_directory = QFileDialog.getExistingDirectory(None, "Select Directory to Copy Photos")
