@@ -175,7 +175,219 @@ class GenerateXMLWorker(QThread):
                 layer.getFeatures(),
                 key=lambda f: f["NR_CRT"] if f["NR_CRT"] not in config.NULL_VALUES else float("inf")
             )
+            
+            required_deschidere_length = {
+                "CLASS_ID": 4,
+                "ID_BDI": 8,
+                "NR_CRT": 8,
+                "DENUM": 50,
+                "ID_STP_INC": 8,
+                "NR_CRT_STP_INC": 8,
+                "ID_STP_TERM": 8,
+                "NR_CRT_STP_TERM": 8,
+                "ID_TR_JT1": 8,
+                "NR_CRT_TR_JT1": 8,
+                "ID_TR_JT2": 8,
+                "NR_CRT_TR_JT2": 8,
+                "ID_TR_JT3": 8,
+                "NR_CRT_TR_JT3": 8,
+                "ID_TR_JT4": 8,
+                "NR_CRT_TR_JT4": 8,
+                "ID_TR_JT5": 8,
+                "NR_CRT_TR_JT5": 8,
+                "ID_TR_JT6": 8,
+                "NR_CRT_TR_JT6": 8,
+                "GEO": 4000,
+                "SURSA_COORD": 30,
+            }
+            
+            required_tronson_length = {
+                "CLASS_ID": 4,
+                "ID_BDI": 8,
+                "NR_CRT": 8,
+                "DENUM": 50,
+                "CLASS_ID_LOC": 4,
+                "ID_LOC": 8,
+                "NR_CRT_LOC": 8,
+                "CLASS_ID_INC_TR": 4,
+                "ID_INC_TR": 8,
+                "NR_CRT_INC_TR": 8,
+                "CLASS_ID_FIN_TR": 4,
+                "ID_FIN_TR": 8,
+                "NR_CRT_FIN_TR": 8,
+                "TIP_TR": 30,
+                "TIP_COND": 60,
+                "GEO": 4000,
+                "SURSA_COORD": 30,
+                "UNIT_LOG_INT": 30,
+                "S_UNIT_LOG": 30,
+                "POST_LUC": 50,
+                "OBS": 200
+            }
+            
+            required_firida_length = {
+                "CLASS_ID": 4,
+                "ID_BDI": 8,
+                "NR_CRT": 8,
+                "IDEN": 50,
+                "CLASS_ID_LOC": 4,
+                "ID_LOC": 8,
+                "NR_CRT_LOC": 8,
+                "CLASS_ID_INST_SUP": 4,
+                "ID_INST_SUP": 8,
+                "NR_CRT_INST_SUP": 8,
+                "JUD": 30,
+                "PRIM": 30,
+                "LOC": 30,
+                "TIP_STR": 30,
+                "STR": 60,
+                "NR": 10,
+                "ETAJ": 10,
+                "ROL_FIRI": 30,
+                "TIP_FIRI_RET": 30,
+                "TIP_FIRI_BR": 30,
+                "AMPL": 30,
+                "MAT": 30,
+                "LIM_PROP": 30,
+                "DEF_FIRI": 30,
+                "NR_CIR": 30,
+                "AN_FUNC": 4,
+                "GEO": 4000,
+                "SURSA_COORD": 30
+            }
+            
+            required_bransament_length = {
+                "CLASS_ID": 4,
+                "ID_BDI": 8,
+                "NR_CRT": 8,
+                "DENUM": 100,
+                "CLASS_ID_LOC": 4,
+                "ID_LOC": 8,
+                "NR_CRT_LOC": 8,
+                "CLASS_ID_PLC_BR": 8,
+                "ID_PLC_BR": 8,
+                "NR_CRT_PLC_BR": 4,
+                "TIP_BR": 30,
+                "TIP_COND": 60,
+                "LUNG": 8,
+                "JUD": 30,
+                "PRIM": 30,
+                "LOC": 30,
+                "TIP_STR": 30,
+                "STR": 60,
+                "NR_IMOB": 10,
+                "GEO": 4000,
+                "SURSA_COORD": 30,
+                "OBS": 200
+            }
 
+            
+            required_grup_masura_length = {
+                "CLASS_ID": 4,
+                "ID_BDI": 8,
+                "NR_CRT": 8,
+                "DENUM": 50,
+                "CLASS_ID_LOC": 4,
+                "ID_LOC": 8,
+                "NR_CRT_LOC": 8,
+                "CLASS_ID_INST_SUP": 4,
+                "ID_INST_SUP": 8,
+                "NR_CRT_INST_SUP": 8,
+                "JUD": 30,
+                "PRIM": 30,
+                "LOC": 30,
+                "TIP_STR": 30,
+                "STR": 60,
+                "NR_SCARA": 8,
+                "ETAJ": 10,
+                "AP": 3
+            }
+            
+            required_stalp_length = {
+                "CLASS_ID": 4,
+                "ID_BDI": 8,
+                "NR_CRT": 8,
+                "ID_LINIE_JT_1": 8,
+                "NR_CRT_LINIE_JT_1": 8,
+                "ID_LINIE_JT_2": 8,
+                "NR_CRT_LINIE_JT_2": 8,
+                "ID_LINIE_JT_3": 8,
+                "NR_CRT_LINIE_JT_3": 8,
+                "ID_LINIE_JT_4": 8,
+                "NR_CRT_LINIE_JT_4": 8,
+                "ID_LINIE_JT_5": 8,
+                "NR_CRT_LINIE_JT_5": 8,
+                "ID_LINIE_JT_6": 8,
+                "NR_CRT_LINIE_JT_6": 8,
+                "DENUM": 85,
+                "NR_INS_STP": 30,
+                "DESC_DET": 250,
+                "PROP": 40,
+                "DET_PROP": 60,
+                "TIP_ZONA_AMP": 30,
+                "JUD": 30,
+                "PRIM": 30,
+                "LOC": 30,
+                "TIP_STR": 30,
+                "STR": 60,
+                "TIP_CIR": 30,
+                "TIP_MAT": 30,
+                "DESC_CTG_MT_JT": 30,
+                "NR_CIR": 30,
+                "UZURA_STP": 60,
+                "TIP_FUND": 30,
+                "OBS_FUND": 60,
+                "ANC": 30,
+                "OBS_ANC": 60,
+                "ADAOS": 30,
+                "OBS_ADAOS": 60,
+                "FIB_OPT": 30,
+                "NR_CIR_FO": 2,
+                "PROP_FO": 30,
+                "LTC": 30,
+                "NR_CIR_LTC": 2,
+                "PROP_LTC": 30,
+                "CATV": 30,
+                "NR_CIR_CATV": 2,
+                "PROP_CATV": 30,
+                "ECHIP_COM": 30,
+                "DISP_CUIB_PAS": 30,
+                "NR_CONS_C2S": 2,
+                "NR_CONS_C4S": 2,
+                "NR_CONS_C2T": 2,
+                "NR_CONS_C4T": 2,
+                "NR_CONS_C2BR": 2,
+                "NR_CONS_C4BR": 2,
+                "TIP_LEG_JT": 30,
+                "PRIZA_LEG_PAM": 30,
+                "CORP_IL": 30,
+                "CUTIE_SEL": 30,
+                "GEO": 4000,
+                "SURSA_COORD": 30,
+                "IMG_FILE_1": 400,
+                "IMG_FILE_2": 400,
+                "IMG_FILE_3": 400,
+                "IMG_FILE_4": 400
+            }
+
+            
+            required_linie_jt_length = {
+                "CLASS_ID": 4,
+                "ID_BDI": 8,
+                "NR_CRT": 8,
+                "DENUM": 40,
+                "PROP": 40,
+                "CLASS_ID_LOC": 4,
+                "ID_LOC": 8,
+                "CLASS_ID_INST_SUP": 4,
+                "ID_INST_SUP": 8,
+                "COD_AD_ENERG": 3,
+                "NIV_TEN": 3,
+                "TIP_LIN": 10,
+                "AN_PIF_INIT": 4,
+                "NR_IV": 25
+            }
+            
             for feature in sorted_features:
                 new_element = ET.Element(repeating_element_tag)
                 for field in layer.fields():
@@ -183,7 +395,14 @@ class GenerateXMLWorker(QThread):
                     if field.name() == "fid" or field.name().startswith("new_name"):
                         continue
                     
+                    if str(xml_template_path).endswith("deschidere.xml"):
+                        field_value = str(field_value)[:required_deschidere_length[field.name()]] if field.name() in required_deschidere_length else field_value
+                    
+                    if str(xml_template_path).endswith("tronson_jt.xml"):
+                        field_value = str(field_value)[:required_tronson_length[field.name()]] if field.name() in required_tronson_length else field_value
+                    
                     if str(xml_template_path).endswith("firida.xml"):
+                        # complete the logic for firida.xml
                         fr_iden = self.helper.get_fr_iden(feature, True)
                         if field.name() == "IDEN":
                             field_value = fr_iden['correct']
@@ -192,7 +411,11 @@ class GenerateXMLWorker(QThread):
                         if field.name() == "STR":
                             field_value = fr_iden['first_str']
                             
+                        # cut field to required length
+                        field_value = str(field_value)[:required_firida_length[field.name()]] if field.name() in required_firida_length else field_value
+                            
                     if str(xml_template_path).endswith("bransament.xml"):
+                        # complete the logic for bransament.xml
                         br_denum = self.helper.get_fr_iden(feature, False)
                         if field.name() == "DENUM":
                             field_value = br_denum['correct']
@@ -201,7 +424,11 @@ class GenerateXMLWorker(QThread):
                         if field.name() == "STR":
                             field_value = br_denum['first_str']
                             
+                        # cut field to required length
+                        field_value = str(field_value)[:required_bransament_length[field.name()]] if field.name() in required_bransament_length else field_value
+                            
                     if str(xml_template_path).endswith("grup_masura.xml"):
+                        # complete the logic for grup_masura.xml
                         correct_denum = self.helper.get_correct_denum(feature)
                         if field.name() == "DENUM":
                             field_value = correct_denum['denum']
@@ -210,7 +437,11 @@ class GenerateXMLWorker(QThread):
                         if field.name() == "STR":
                             field_value = correct_denum['str']
                             
+                        # cut field to required length
+                        field_value = str(field_value)[:required_grup_masura_length[field.name()]] if field.name() in required_grup_masura_length else field_value
+                            
                     if str(xml_template_path).endswith("stalp.xml"):
+                        # complete the logic for stalp.xml
                         if field.name() == "NR_CIR":
                             if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
                                 field_value = f"{field_value} circuite"
@@ -230,10 +461,18 @@ class GenerateXMLWorker(QThread):
                         if field.name() == "ADAOS":
                             if field_value.lower() in ["lemn", "metal", "beton"]:
                                 field_value = "Da"
+                                
+                        # cut field to required length
+                        field_value = str(field_value)[:required_stalp_length[field.name()]] if field.name() in required_stalp_length else field_value
 
                     if str(xml_template_path).endswith("linie_jt.xml"):
+                        # complete the logic for linie_jt.xml
                         if field.name() == "DENUM":
                             field_value = ''
+                            
+                        # cut field to required length
+                        field_value = str(field_value)[:required_linie_jt_length[field.name()]] if field.name() in required_linie_jt_length else field_value
+                        
                     child_element = ET.SubElement(new_element, field.name())
                     if str(field_value) not in config.NULL_VALUES:
                         child_element.text = str(field_value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

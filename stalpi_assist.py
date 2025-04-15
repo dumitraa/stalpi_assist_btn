@@ -61,7 +61,8 @@ from qgis.core import ( # type: ignore
     QgsWkbTypes,
     QgsMarkerSymbol,
     QgsLineSymbol,
-    QgsSingleSymbolRenderer
+    QgsSingleSymbolRenderer,
+    QgsFeature,
 )
 from PyQt5.QtCore import QSize # type: ignore
 
@@ -209,6 +210,14 @@ class StalpiAssist:
         )
         
         self.actions_to_enable = [
+            self.add_action(
+                "Separare poze dupa selectie",
+                text=self.tr(u'Separare poze dupa selectie'),
+                callback=self.separate_photos_by_selection,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/separate.png')),
+                enabled_flag=False
+            ),
             self.add_action(
                 "Completare câmpuri",
                 text=self.tr(u'Completare câmpuri'),
@@ -407,6 +416,116 @@ class StalpiAssist:
                         layer_node.setItemVisibilityChecked(False)
                 else:
                     QgsMessageLog.logMessage("Failed to load GRID_GEOID layer.", "StalpiAssist", level=Qgis.Critical)
+                    
+                    
+    def separate_photos_by_selection(self):
+        '''
+        based on a selection or a drawn polygon, get all features from poze and save them in new layers with the same name, saving them to self.base_dir
+        '''
+        
+        poze_layer = QgsProject.instance().mapLayersByName("poze")
+        
+        if not poze_layer:
+            QMessageBox.critical(None, "Eroare", f"Stratul 'poze' nu există în proiect. Asigură-te că stratul există și are denumirea corectă.")
+            return
+
+        poze = poze_layer[0]
+        # The name we’ll look for/create
+        polygon_layer_name = "poligon"
+
+        polygon_layers = QgsProject.instance().mapLayersByName(polygon_layer_name)
+        polygon_layer = polygon_layers[0] if polygon_layers else None
+
+        if not polygon_layer or polygon_layer.featureCount() == 0:
+            temp_crs = poze.crs().authid()
+            temp_layer = QgsVectorLayer(
+                f"Polygon?crs={temp_crs}", 
+                polygon_layer_name, 
+                "memory"
+            )
+
+            QgsProject.instance().addMapLayer(temp_layer)
+            QMessageBox.information(None, "Poligon", "Deseneaza poligonul pe zona dorita si apoi apasa din nou pe buton.")
+            
+            # make layer editable, enable "add polygon feature" to start drawing immeately
+            temp_layer.startEditing()
+            self.iface.setActiveLayer(temp_layer)
+            self.iface.actionAddFeature().trigger()
+            return
+            
+
+        if polygon_layer.featureCount() != 1:
+            QMessageBox.warning(
+                None,
+                "Poligon invalid",
+                f"Layerul {polygon_layer_name} trebuie să conțină un singur poligon."
+            )
+            return
+
+        polygon_feature = next(polygon_layer.getFeatures())
+        polygon_geom = polygon_feature.geometry()
+        
+
+        layers_to_filter = {
+            "poze": poze,
+        }
+
+        base_dir = self.base_dir
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+
+        root = QgsProject.instance().layerTreeRoot()
+        group_name = f"Date_Filtrate_{polygon_layer_name}"
+        new_group = root.addGroup(group_name)
+
+        for layer_name, original_layer in layers_to_filter.items():
+            geometry_type = QgsWkbTypes.displayString(original_layer.wkbType())
+            crs = original_layer.crs().authid()
+
+            # Create a temporary in-memory layer
+            new_layer = QgsVectorLayer(f"{geometry_type}?crs={crs}", layer_name, "memory")
+            new_layer_data = new_layer.dataProvider()
+            new_layer_data.addAttributes(original_layer.fields())
+            new_layer.updateFields()
+
+            # Filter features intersecting polygon_geom and add them to the temporary layer
+            matching_features = []
+            for feature in original_layer.getFeatures():
+                if feature.geometry() and feature.geometry().intersects(polygon_geom):
+                    matching_features.append(QgsFeature(feature))
+            new_layer_data.addFeatures(matching_features)
+            new_layer.updateExtents()
+
+            # Save the temporary layer to disk (GeoPackage)
+            output_path = os.path.join(base_dir, f"{layer_name}.gpkg")
+            QgsVectorFileWriter.writeAsVectorFormat(
+                new_layer, output_path, "UTF-8", original_layer.crs(), "GPKG"
+            )
+
+            # Load the saved layer as the permanent layer
+            permanent_layer = QgsVectorLayer(output_path, layer_name, "ogr")
+            QgsProject.instance().addMapLayer(permanent_layer, False)
+            new_group.addLayer(permanent_layer)
+            
+            if original_layer:
+                orig_renderer = original_layer.renderer()
+                if orig_renderer is not None:
+                    permanent_layer.setRenderer(orig_renderer.clone())
+                else:
+                    print(f"Warning: No renderer found for {layer_name}.")
+
+                # Clone labeling if enabled and available
+                if original_layer.labelsEnabled() and original_layer.labeling() is not None:
+                    permanent_layer.setLabeling(original_layer.labeling().clone())
+                    permanent_layer.setLabelsEnabled(True)
+
+                permanent_layer.triggerRepaint()
+
+
+        QMessageBox.information(None, "Succes", "Layerul filtrat a fost salvat cu succes.")
+        # if polygon_layer:
+        #     polygon_layer.commitChanges()
+        #     QgsProject.instance().removeMapLayer(polygon_layer.id())
 
     def complete_fields(self):
         '''
@@ -559,6 +678,16 @@ class StalpiAssist:
 
     def run_brans_model(self):
         """Run Brans model with a progress window."""
+        # complete @row_number + 1000 field in NR_CRT for - FB pe c les
+        fb_layer = self.get_layer_by_name("FB pe C LES")
+        if fb_layer:
+            fb_layer.startEditing()
+            for index, feat in enumerate(fb_layer.getFeatures(), start=1):
+                feat["NR_CRT"] = index + 1000
+                fb_layer.updateFeature(feat)
+            fb_layer.commitChanges()
+        else:
+            QMessageBox.critical(None, "Error", "Layer 'FB pe C LES' not found in the project.")
         
         params = {
             "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
@@ -610,6 +739,7 @@ class StalpiAssist:
 
         except Exception as e:
             QMessageBox.critical(self.iface.mainWindow(), "Model Error", f"An error occurred: {str(e)}")
+        
 
     def copy_rename_pictures(self):
         new_directory = QFileDialog.getExistingDirectory(None, "Select Directory to Copy Photos")
