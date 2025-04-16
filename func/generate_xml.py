@@ -446,14 +446,12 @@ class GenerateXMLWorker(QThread):
                             if isinstance(field_value, str) and field_value.isdigit() and int(field_value) > 2:
                                 field_value = f"{field_value} circuite"
                         if field.name() == "TIP_MAT":
-                            if feature["DESC_CTG_MT_JT"] in ["SV 10001", "SV 10002", "SV 15011"]:
+                            if feature["DESC_CTG_MT_JT"] in ["SV 10001", "SV 10002", "SV 15011", "Portal"]:
                                 field_value = "Beton"
                             elif "St. metalic" in feature["DESC_CTG_MT_JT"]:
                                 field_value = "Metal"
                             elif "St. lemn" in feature["DESC_CTG_MT_JT"]:
                                 field_value = "Lemn"
-                            elif "Portal" in feature["DESC_CTG_MT_JT"]:
-                                field_value = "Portal"
                         if field.name() == "UZURA_STP":
                             field_value = "5"
                         if field.name() == "PROP_CATV" or field.name() == "PROP_LTC":
