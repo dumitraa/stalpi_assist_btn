@@ -212,8 +212,8 @@ class HelperBase:
     def check_obligatory_fields(self):
         layers_to_check = {
             "STALP_JT": [
-                "DENUM", "NR_INS_STP", "PROP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", 
-                "TIP_CIR", "DESC_CTG_MT_JT", "NR_CIR", "UZURA_STP", "TIP_FUND", 
+                "DENUM", "NR_INS_STP", "PROP", "JUD", "PRIM", "LOC", "TIP_STR", "STR",
+                "TIP_CIR", "DESC_CTG_MT_JT", "NR_CIR", "TIP_FUND", 
                 "ADAOS", "TIP_LEG_JT", "fid"],
             "BRANS_FIRI_GRPM_JT": [
                 "fid", "TIP_BR", "TIP_COND", "JUD", "PRIM", "LOC", "TIP_STR", "STR", 
@@ -221,8 +221,8 @@ class HelperBase:
             "TRONSON_JT": [
                 "TIP_TR", "TIP_COND", "fid", "LINIA_JT"],
             "FB pe C LES": [
-                "fid", "DENUM", "TIP_BR", "TIP_COND", "JUD", "PRIM", "LOC", "TIP_STR", 
-                "STR", "NR_IMOB", "SURSA_COORD", "DATA_COORD", "TIP_FIRI_BR", "LINIA_JT"],
+                "fid", "TIP_BR", "TIP_COND", "JUD", "PRIM", "LOC", "TIP_STR", 
+                "STR", "NR_IMOB", "TIP_FIRI_BR", "LINIA_JT"],
             "LINIE_JT": [
                 "ID_BDI", "DENUM"]
         }

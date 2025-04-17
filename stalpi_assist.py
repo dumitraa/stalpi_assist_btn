@@ -25,6 +25,8 @@ from pathlib import Path
 
 from . import config
 
+from datetime import datetime
+
 import os
 import colorsys
 import random
@@ -58,11 +60,13 @@ from qgis.core import ( # type: ignore
     QgsCoordinateReferenceSystem,
     QgsMapSettings,
     QgsCoordinateTransform,
-    QgsWkbTypes,
     QgsMarkerSymbol,
     QgsLineSymbol,
     QgsSingleSymbolRenderer,
     QgsFeature,
+    QgsExpression,
+    QgsExpressionContext,
+    QgsExpressionContextUtils,
 )
 from PyQt5.QtCore import QSize # type: ignore
 
@@ -677,18 +681,72 @@ class StalpiAssist:
             
 
     def run_brans_model(self):
-        """Run Brans model with a progress window."""
-        # complete @row_number + 1000 field in NR_CRT for - FB pe c les
+        """Run Brans model, using multiple expressions in the same context."""
         fb_layer = self.get_layer_by_name("FB pe C LES")
-        if fb_layer:
-            fb_layer.startEditing()
-            for index, feat in enumerate(fb_layer.getFeatures(), start=1):
-                feat["NR_CRT"] = index + 1000
-                fb_layer.updateFeature(feat)
-            fb_layer.commitChanges()
-        else:
-            QMessageBox.critical(None, "Error", "Layer 'FB pe C LES' not found in the project.")
+        if not fb_layer:
+            QMessageBox.critical(None, "Error", "Layer 'FB pe C LES' not found.")
+            return
+
+        # 1. Prepare all your expressions once, outside the loop.
+        exprs = {
+            "ID_LOC": QgsExpression("""
+                aggregate(
+                    layer:='TRONSON_XML_',
+                    aggregate:='array_agg',
+                    expression:="ID_LOC",
+                    filter:=intersects($geometry, geometry(@parent))
+                )[0]
+            """),
+            "ID_PLC_BR": QgsExpression("""
+                aggregate(
+                layer:='TRONSON_XML_',
+                aggregate:='array_agg',
+                expression:="ID_LOC",
+                filter:=intersects($geometry, geometry(@parent))
+            )[0]
+            """)
+        }
+
+        # 2. Create one context and load the project+layer scopes.
+        context = QgsExpressionContext()
+        context.appendScopes(
+            QgsExpressionContextUtils.globalProjectLayerScopes(fb_layer)
+        )
+
+        fb_layer.startEditing()
+        for idx, feat in enumerate(fb_layer.getFeatures(), start=1):
+            # simple attributes you were already setting
+            feat["NR_CRT"]          = idx + 1000
+            feat["CLASS_ID"]        = 2003
+            feat["DENUM"]           = f"FB {feat['STR']} {feat['NR_IMOB']}"
+            feat["CLASS_ID_PLC_BR"] = 2003
+            feat["SURSA_COORD"]     = 'Vectorizare in plan'
+            feat["DATA_COORD"]      = datetime.now().strftime("%d.%m.%Y")
+
+            # 3. Reset the context to this feature
+            context.setFeature(feat)
+
+            # 4. Loop through your expressions dict,
+            #    evaluate and assign each result.
+            for field_name, expression in exprs.items():
+                val = expression.evaluate(context)
+                if expression.hasEvalError():
+                    raise RuntimeError(
+                        f"Expression error for {field_name}: "
+                        f"{expression.evalErrorString()}"
+                    )
+                feat[field_name] = val
+
+            fb_layer.updateFeature(feat)
+
+        if not fb_layer.commitChanges():
+            fb_layer.rollBack()
+            QMessageBox.critical(
+                None, "Error",
+                f"Failed to commit: {fb_layer.commitErrors()}"
+            )
         
+        # run model
         params = {
             "brans_firi_desenate": self.get_layer_path("BRANS_FIRI_GRPM_JT"),
             "fb_pe_c_les": self.get_layer_path("FB pe C LES"),
