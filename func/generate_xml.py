@@ -448,7 +448,7 @@ class GenerateXMLWorker(QThread):
                         if field.name() == "TIP_MAT":
                             if feature["DESC_CTG_MT_JT"] in ["SV 10001", "SV 10002", "SV 15011", "Portal"]:
                                 field_value = "Beton"
-                            elif "St. metalic" in feature["DESC_CTG_MT_JT"]:
+                            elif "St. metalic" in feature["DESC_CTG_MT_JT"] or "ST. METALIC" in feature["DESC_CTG_MT_JT"]:
                                 field_value = "Metal"
                             elif "St. lemn" in feature["DESC_CTG_MT_JT"]:
                                 field_value = "Lemn"
