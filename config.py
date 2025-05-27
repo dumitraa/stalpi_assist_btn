@@ -1,1 +1,1 @@
-NULL_VALUES = ["NULL", "None", None, "nan", ""]
+NULL_VALUES = ["NULL", "NUL", "None", None, "nan", ""]

@@ -456,7 +456,7 @@ class HelperBase:
                         continue
 
                     original_value = feature[field.name()]
-                    if original_value == '':
+                    if original_value == '' or original_value == "NUL":
                         attrs[idx] = None
                 if attrs:
                     updates[feature.id()] = attrs
