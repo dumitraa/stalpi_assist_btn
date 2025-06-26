@@ -31,11 +31,11 @@ import os
 import colorsys
 import random
 
-from qgis.core import QgsProject, QgsDxfExport, QgsCoordinateTransformContext # type: ignore
+from qgis.core import QgsProject, QgsDxfExport, QgsCoordinateTransformContext, QgsField # type: ignore
 
 from PyQt5.QtGui import QColor # type: ignore
-from PyQt5.QtWidgets import QMessageBox, QFileDialog, QAction, QInputDialog # type: ignore 
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QFile, QTextCodec # type: ignore
+from PyQt5.QtWidgets import QMessageBox, QFileDialog, QAction, QInputDialog # type: ignore
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QFile, QTextCodec, QVariant # type: ignore
 from qgis.PyQt.QtGui import QIcon  # type: ignore
 from qgis.core import ( # type: ignore
     QgsMessageLog,
@@ -317,6 +317,14 @@ class StalpiAssist:
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/export.png')),
                 enabled_flag=False
+            ),
+            self.add_action(
+                "Măsoara lungime tronson",
+                text=self.tr(u'Măsoara lungime tronson'),
+                callback=self.change_length_tronson,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/measure.png')),
+                enabled_flag=True 
             )
         ]
         
@@ -1423,6 +1431,7 @@ class StalpiAssist:
                 
                 # Modify text size and color
                 text_size = "<LabelStyle><scale>2</scale></LabelStyle>"
+                
                 color_tag = f"<color>{colors[i % len(colors)]}</color>"
                 
                 kml_content = kml_content.replace("<LabelStyle>", f"<LabelStyle>{text_size}").replace("<IconStyle>", f"<IconStyle>{color_tag}")
@@ -1437,3 +1446,66 @@ class StalpiAssist:
         kmz_filename = os.path.join(output_directory, "merged_export.kmz")
         os.system(f"zip -j {kmz_filename} {output_directory}/*.kml")
         QMessageBox.information(self.iface.mainWindow(), "KMZ Export", f"KMZ file exported successfully at {kmz_filename}")
+
+    def change_length_tronson(self):
+        """Prompt for a percentage and update LUNG_TR in every tronson layer."""
+
+        names   = ("TRONSON_XML_", "TRONSON_predare_xml", "TRONSON MACHETA")
+        layers  = [l[0] for n in names if (l := QgsProject.instance().mapLayersByName(n))]
+        if not layers:
+            QMessageBox.warning(self.iface.mainWindow(), "StalpiAssist",
+                                "Nu există niciun strat TRONSON* în proiect.")
+            return
+
+        pct, ok = QInputDialog.getDouble(self.iface.mainWindow(),
+                                        "Procentul de adăugare la lungime (%)",
+                                        "Introdu procentul:",
+                                        value=30.0, decimals=2, min=-100.0)
+        if not ok:
+            return
+
+        factor   = 1 + pct/100.0
+        expr_txt = f"format_number((length($geometry)/1000) * {factor}, 3)"
+        
+        for lyr in layers:
+            fld = "LUNG_TR" if lyr.name() != "TRONSON MACHETA" else "Lungimea tronsonului (km)"
+            if fld not in {f.name() for f in lyr.fields()}:
+                lyr.dataProvider().addAttributes([QgsField(fld, QVariant.Double, len=10, prec=3)])
+                lyr.updateFields()
+
+            ctx  = QgsExpressionContext()
+            ctx.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(lyr))
+
+            expr = QgsExpression(expr_txt)
+            if expr.hasParserError():
+                QMessageBox.critical(self.iface.mainWindow(), "Eroare expresie",
+                                    f"Expresia nu este validă: {expr.parserErrorString()}")
+                return
+
+            idx  = lyr.fields().indexOf(fld)
+            count_updates = 0
+
+            lyr.startEditing()
+            for ft in lyr.getFeatures():
+                ctx.setFeature(ft)
+                val = expr.evaluate(ctx)
+                if expr.hasEvalError():
+                    lyr.rollBack()
+                    QMessageBox.critical(self.iface.mainWindow(), "Eroare evaluare",
+                                        f"Eroare la feature {ft.id()}: {expr.evalErrorString()}")
+                    return
+                lyr.changeAttributeValue(ft.id(), idx, val)
+                count_updates += 1
+
+            if not lyr.commitChanges():
+                QMessageBox.critical(self.iface.mainWindow(),
+                                    "Eroare la commit",
+                                    f"{lyr.name()}: {lyr.commitErrors()}")
+                return
+
+            QgsMessageLog.logMessage(f"{lyr.name()}: {count_updates} rânduri actualizate.",
+                                    "StalpiAssist", Qgis.Info)
+
+        QMessageBox.information(self.iface.mainWindow(), "Succes",
+                                f"S-au recalculat lungimile cu factor {factor:.2f} în {len(layers)} straturi.")
+        

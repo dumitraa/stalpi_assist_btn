@@ -533,26 +533,6 @@ class HelperBase:
             layer.startEditing()
             layer.dataProvider().changeAttributeValues(updates)
             layer.commitChanges()
-
-
-# MARK: PARSERS
-    def save_xml(self, xml_name, name, xml_file):
-        root = ET.Element(xml_name) 
-
-        for linie in self.linii:
-            linie_element = ET.SubElement(root, name)
-            for attr, value in linie.__dict__.items():
-                child = ET.SubElement(linie_element, attr.upper())
-                child.text = str(value) if value is not None else ""
-
-        rough_string = ET.tostring(root, 'utf-8-sig')
-
-        reparsed = minidom.parseString(rough_string)
-        pretty_xml = reparsed.toprettyxml(indent="    ")
-
-        with open(xml_file, 'w', encoding='utf-8-sig') as f:
-            f.write(pretty_xml)
-        
         
 class SHPProcessor:
     '''
