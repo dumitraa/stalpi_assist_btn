@@ -31,10 +31,11 @@ class LinieJT:
 
 
 class IgeaLinieParser:
-    def __init__(self, vector_layer):
+    def __init__(self, vector_layer, judet_sheet):
         self.vector_layer = vector_layer
         self.linii: List[LinieJT] = []
         self.helper = HelperBase()
+        self.judet_sheet = judet_sheet
         
         self.mapping = {
             "ID": "id_bdi",
@@ -83,17 +84,21 @@ class IgeaLinieParser:
 
     def load_lookup_values(self, xlsx_path):
         """
-        Loads values from the given Excel file and returns a set of lookup values.
+        Loads lookup values from the specific sheet of the given Excel file.
         """
+        if not self.judet_sheet:
+            QMessageBox.critical(None, "Eroare", "Judetul nu a fost selectat. Ruleaza 'Completare câmpuri' mai întâi.")
+            return set()
+            
         if not os.path.exists(xlsx_path):
-            QgsMessageLog.logMessage(f"File not found: {xlsx_path}", "StalpiAssist", level=Qgis.Critical)
             return set()
 
         try:
-            df = pd.read_excel(xlsx_path, usecols=[0], dtype=str)
+            # Use the stored judet_sheet to read the correct sheet from pt.xlsx
+            df = pd.read_excel(xlsx_path, sheet_name=self.judet_sheet, usecols=[0], dtype=str)
             return set(df.iloc[:, 0].dropna().str.strip())
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error loading Excel file: {e}", "StalpiAssist", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error loading Excel file from sheet '{self.judet_sheet}': {e}", "StalpiAssist", level=Qgis.Critical)
             return set()
 
     @staticmethod

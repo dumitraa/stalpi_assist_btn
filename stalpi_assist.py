@@ -541,52 +541,66 @@ class StalpiAssist:
 
     def complete_fields(self):
         '''
-        - Complete @row_number field in NR_CRT for - STALP_JT, TRONSON_JT, BRANS_FIRI_GRMP_JT
-        - Ask user for Denumire
-        - Add in QGIS table from templates: bd.xlsx and search by Descrierea BDI == Denumire
-        - In layer TRONSON_JT - UNIT_LOG_INT - complete with the value from 'Unitatea logistica de intretinere'
-        - In layer TRONSON_JT - S_UNIT_LOG - complete with the value from 'Sectie unitate logistica'
-        - In layer TRONSON_JT - POST_LUC - complete with the value from 'Post de lucru'
-        
-        - In layer STALP_JT - DESC_DET - complete with the value from column f'{"Sucursala"}-{"Post de lucru"}'
+        - Asks user for Judet and Denumire.
+        - Completes the NR_CRT field for specified layers.
+        - Looks up data in the correct sheet of bd.xlsx based on the selected Judet.
+        - Populates fields in TRONSON_JT and STALP_JT layers based on the lookup.
         '''
-
         # Get active QGIS project
         project = QgsProject.instance()
 
+        # Define Judet to Excel Sheet mapping
+        judete_map = {
+            "Buzău": "BZ",
+            "Brăila": "BR",
+            "Vrancea": "VR"
+        }
+        judete_list = list(judete_map.keys())
+
+        # Prompt user for 'Județ' using a dropdown
+        judet, ok = QInputDialog.getItem(None, "Selectează Județul", "Alege județul:", judete_list, 0, False)
+        if not ok or not judet:
+            return  # User cancelled
+
+        # Get the corresponding sheet name and store it for other functions
+        self.judet_sheet = judete_map[judet]
+
         # Prompt user for 'Denumire'
-        denumire, ok = QInputDialog.getText(None, "Input Descriere BDI", "Introduce Descrierea BDI:")
+        denumire, ok = QInputDialog.getText(None, "Input Descriere BDI", f"Introduce Descrierea BDI pentru judetul {judet}:")
         if not ok or not denumire:
             return
         
         self.pt_name = denumire
         
-        # Load the Excel template
+        # Load the Excel template using the correct sheet for the selected county
         xlsx_path = self.plugin_path('func', 'templates', 'bd.xlsx')
-        df = pd.read_excel(xlsx_path)
-        
-        # Search for the row where 'Descrierea BDI' == Denumire
-        match = df[df['Descrierea BDI'] == denumire]
-        if match.empty:
-            QMessageBox.critical(None, "Error", f"No matching entry for {denumire} in bd.xlsx")
+        try:
+            df = pd.read_excel(xlsx_path, sheet_name=self.judet_sheet)
+        except Exception as e:
+            QMessageBox.critical(None, "Eroare Fisier", f"Nu s-a putut citi foaia '{self.judet_sheet}' din 'bd.xlsx'.\nEroare: {e}")
             return
         
-        # Extract relevant values
+        # Search for the row where 'Descrierea BDI' matches the user's input
+        match = df[df['Descrierea BDI'] == denumire]
+        if match.empty:
+            QMessageBox.critical(None, "Error", f"Nu a fost gasita o intrare pentru '{denumire}' in foaia '{self.judet_sheet}' a fisierului bd.xlsx")
+            return
+        
+        # Extract relevant values from the matched row
         unit_log_int = match.iloc[0]['Unitate logistica de întretinere']
         s_unit_log = match.iloc[0]['Sectie unitate logistica']
         post_luc = match.iloc[0]['Post de lucru']
         sucursala = match.iloc[0]['Sucursala']
 
-        # Assign NR_CRT based on row number
+        # Helper function to assign sequential row numbers to NR_CRT field
         def assign_row_numbers(layer):
-            """Assigns sequential row numbers to NR_CRT."""
             layer.startEditing()
             for index, feat in enumerate(layer.getFeatures(), start=1):
-                feat["NR_CRT"] = index  # Assign row number
+                feat["NR_CRT"] = index
                 layer.updateFeature(feat)
             layer.commitChanges()
 
-        # Update TRONSON_JT
+        # Update TRONSON_JT layer
         tronson_layer = project.mapLayersByName("TRONSON_JT")[0]
         if tronson_layer:
             tronson_layer.startEditing()
@@ -596,9 +610,9 @@ class StalpiAssist:
                 feat["POST_LUC"] = post_luc
                 tronson_layer.updateFeature(feat)
             tronson_layer.commitChanges()
-            assign_row_numbers(tronson_layer)  # Assign row numbers after updating
+            assign_row_numbers(tronson_layer)
 
-        # Update STALP_JT
+        # Update STALP_JT layer
         stalp_layer = project.mapLayersByName("STALP_JT")[0]
         if stalp_layer:
             stalp_layer.startEditing()
@@ -607,12 +621,12 @@ class StalpiAssist:
                 feat["TIP_ZONA_AMP"] = "Rural" if feat["TIP_ZONA_AMP"] in config.NULL_VALUES else feat["TIP_ZONA_AMP"]
                 stalp_layer.updateFeature(feat)
             stalp_layer.commitChanges()
-            assign_row_numbers(stalp_layer)  # Assign row numbers after updating
+            assign_row_numbers(stalp_layer)
 
-        # Update BRANS_FIRI_GRMP_JT
+        # Update BRANS_FIRI_GRMP_JT layer
         brans_layer = project.mapLayersByName("BRANS_FIRI_GRPM_JT")[0]
         if brans_layer:
-            assign_row_numbers(brans_layer)  # Directly assign row numbers
+            assign_row_numbers(brans_layer)
 
         QMessageBox.information(None, "Success", "Fields completed successfully!")
 

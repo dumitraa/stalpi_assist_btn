@@ -538,7 +538,7 @@ class SHPProcessor:
     '''
     Class to process the SHP layers, validate them and load them into QGIS
     '''
-    def __init__(self, layers):
+    def __init__(self, layers, judet_sheet):
         '''
         Constructor for the SHPProcessor class
         :param layers: A dictionary with layer names and their respective QgsVectorLayer objects
@@ -548,6 +548,7 @@ class SHPProcessor:
         self.layers = layers
         self.parsers = []
         self.invalid_elements = []
+        self.judet_sheet = judet_sheet
         self.load_layers()
     
     
@@ -570,7 +571,7 @@ class SHPProcessor:
                 
                 match layer_name.lower():
                     case "linie_jt": 
-                        parser = IgeaLinieParser(layer)
+                        parser = IgeaLinieParser(layer, self.judet_sheet)
                     case "stalp_xml_":
                         parser = IgeaStalpParser(layer)
                     case "bransament_xml_":
