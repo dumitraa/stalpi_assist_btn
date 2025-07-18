@@ -1464,7 +1464,7 @@ class StalpiAssist:
     def change_length_tronson(self):
         """Prompt for a percentage and update LUNG_TR in every tronson layer."""
 
-        names   = ("TRONSON_XML_", "TRONSON_predare_xml", "TRONSON MACHETA")
+        names   = ("DESCHIDERI_XML_", "DESCHIDERI MACHETA")
         layers  = [l[0] for n in names if (l := QgsProject.instance().mapLayersByName(n))]
         if not layers:
             QMessageBox.warning(self.iface.mainWindow(), "StalpiAssist",
@@ -1482,7 +1482,7 @@ class StalpiAssist:
         expr_txt = f"format_number((length($geometry)/1000) * {factor}, 3)"
         
         for lyr in layers:
-            fld = "LUNG_TR" if lyr.name() != "TRONSON MACHETA" else "Lungimea tronsonului (km)"
+            fld = "LUNG" if lyr.name() != "DESCHIDERI MACHETA" else "Lungime (m)"
             if fld not in {f.name() for f in lyr.fields()}:
                 lyr.dataProvider().addAttributes([QgsField(fld, QVariant.Double, len=10, prec=3)])
                 lyr.updateFields()
