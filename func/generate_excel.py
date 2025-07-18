@@ -6,10 +6,11 @@ import shutil
 
 class GenerateExcelDialog(QDialog):
     
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, judet_sheet):
         super().__init__()
         self.helper = HelperBase()
         self.base_dir = base_dir
+        self.judet_sheet = judet_sheet
         self.template_path = 'templates'
         self.processor = None
         self.layers = self.helper.get_layers()
@@ -105,7 +106,7 @@ class GenerateExcelDialog(QDialog):
         
         if not self.processor:
             try:
-                self.processor = SHPProcessor(self.layers)
+                self.processor = SHPProcessor(self.layers, self.judet_sheet)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error creating processor: {e}", "StalpiAssist", level=Qgis.Critical)
                 return
@@ -120,7 +121,7 @@ class GenerateExcelDialog(QDialog):
             self.processor = None
             
             try:
-                self.processor = SHPProcessor(current_layers)
+                self.processor = SHPProcessor(current_layers, self.judet_sheet)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error creating processor: {e}", "StalpiAssist", level=Qgis.Critical)
                 return

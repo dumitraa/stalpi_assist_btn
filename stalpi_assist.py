@@ -1181,7 +1181,7 @@ class StalpiAssist:
         
     def generate_anexa(self):
         self.process_layers(self.layers)
-        dialog = GenerateExcelDialog(self.base_dir)  # Create an instance of your dialog
+        dialog = GenerateExcelDialog(self.base_dir, self.judet_sheet)  # Create an instance of your dialog
         dialog.exec_()  # Properly call exec_ on the instance
         
     def generare_machete(self):
@@ -1241,7 +1241,7 @@ class StalpiAssist:
     def process_layers(self, layers):
         if not self.processor:
             try:
-                self.processor = SHPProcessor(layers)
+                self.processor = SHPProcessor(layers, self.judet_sheet)
             except Exception as e:
                 return
         
@@ -1254,7 +1254,7 @@ class StalpiAssist:
             self.processor = None
             
             try:
-                self.processor = SHPProcessor(current_layers)
+                self.processor = SHPProcessor(current_layers, self.judet_sheet)
             except Exception as e:
                 return
         else:
