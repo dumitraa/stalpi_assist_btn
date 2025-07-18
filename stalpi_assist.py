@@ -1468,7 +1468,7 @@ class StalpiAssist:
         layers  = [l[0] for n in names if (l := QgsProject.instance().mapLayersByName(n))]
         if not layers:
             QMessageBox.warning(self.iface.mainWindow(), "StalpiAssist",
-                                "Nu există niciun strat TRONSON* în proiect.")
+                                "Nu există niciun strat DESCHIDERI* în proiect.")
             return
 
         pct, ok = QInputDialog.getDouble(self.iface.mainWindow(),
