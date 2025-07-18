@@ -328,6 +328,14 @@ class StalpiAssist:
             )
         ]
         
+        self.toolbar.addSeparator()
+
+        self.action_length = self.add_action(
+            "Lungime PT",
+            text=self.tr(u"Lungime TRONSON_JT: apasă pentru calcul"),
+            callback=self.trigger_calc_length,
+            parent=self.iface.mainWindow()
+        )
         # will be set False in run()
         self.first_start = True
 
@@ -338,6 +346,72 @@ class StalpiAssist:
             self.iface.removePluginMenu(self.tr(u'&Stalpi Assist'), action)
             self.toolbar.removeAction(action)
         del self.toolbar
+        
+        
+    def trigger_calc_length(self):
+        layers = QgsProject.instance().mapLayersByName("TRONSON_JT")
+        if layers:
+            self.layer = layers[0]
+            self.connectLayerSignals(self.layer)
+            self.recalc_length()
+        QgsProject.instance().layersAdded.connect(self.onLayersAdded)
+        QgsProject.instance().readProject.connect(self.onProjectRead)
+
+    def connectLayerSignals(self, layer):
+        layer.featureAdded.connect(self.recalc_length)
+        layer.featuresDeleted.connect(self.recalc_length)
+        layer.geometryChanged.connect(self.recalc_length)
+        layer.committedFeaturesAdded.connect(self.recalc_length)
+        layer.committedFeaturesRemoved.connect(self.recalc_length)
+        layer.committedGeometriesChanges.connect(self.recalc_length)
+        layer.afterCommitChanges.connect(self.recalc_length)
+
+    def onLayersAdded(self, layers):
+        for layer in layers:
+            if layer.name() == "TRONSON_JT":
+                self.layer = layer
+                self.connectLayerSignals(layer)
+                self.recalc_length()
+
+    def onProjectRead(self):
+        layers = QgsProject.instance().mapLayersByName("TRONSON_JT")
+        if layers:
+            self.layer = layers[0]
+            self.connectLayerSignals(self.layer)
+            self.recalc_length()
+
+    def recalc_length(self):
+        length_with_overlap_m = 0.0
+        total_union = None
+
+        if not self.layer:
+            return
+
+        for feat in self.layer.getFeatures():
+            geom = feat.geometry()
+            if not geom or geom.isEmpty():
+                continue
+
+            length_with_overlap_m += geom.length()
+
+            if total_union is None:
+                total_union = geom
+            else:
+                total_union = total_union.combine(geom) 
+
+
+        length_no_overlap_km = 0.0
+        if total_union:
+            length_no_overlap_km = total_union.length() / 1000.0
+
+        length_with_overlap_km = length_with_overlap_m / 1000.0
+
+        if self.action_length:
+            display_text = self.tr(
+                u"Lungime TRONSON_JT - Fără suprapuneri: {:.2f} km | Cu suprapuneri: {:.2f} km"
+                .format(length_no_overlap_km, length_with_overlap_km)
+            )
+            self.action_length.setText(display_text)
         
     def get_layer_path(self, layer_name):
         """
