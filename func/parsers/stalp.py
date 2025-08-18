@@ -108,7 +108,7 @@ class IgeaStalpParser:
             "Tip strada": "tip_str",
             "Strada": "str",
             "Tip circuit": "tip_cir",
-            "Tip material": lambda st: "Beton" if st.desc_ctg_mt_jt in ["SV 10001", "SV 10002", "SV 15011", "Portal"] else "Metal" if "St. metalic" in st.desc_ctg_mt_jt else "Lemn" if "St. lemn" in st.desc_ctg_mt_jt else st.tip_mat,
+            "Tip material": lambda st: "Beton" if st.desc_ctg_mt_jt in ["SV 10001", "SV 10002", "SV 15011", "SV 15007", "SV 15014", "Portal"] else "Metal" if "St. metalic" in st.desc_ctg_mt_jt else "Lemn" if "St. lemn" in st.desc_ctg_mt_jt else st.tip_mat,
             "Descriere catalog MT, JT": "desc_ctg_mt_jt",
             "Numar circuite": lambda st: (f"{st.nr_cir} circuite" if int(st.nr_cir) > 2 else int(st.nr_cir)) if st.nr_cir and str(st.nr_cir).isdigit() else st.nr_cir,
             "Defecte stalp": lambda st: "", # ?

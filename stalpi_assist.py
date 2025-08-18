@@ -67,6 +67,11 @@ from qgis.core import ( # type: ignore
     QgsExpression,
     QgsExpressionContext,
     QgsExpressionContextUtils,
+    QgsUnitTypes,
+    QgsGeometry, 
+    QgsSpatialIndex,
+    QgsLineString,
+    edit
 )
 from PyQt5.QtCore import QSize # type: ignore
 
@@ -276,6 +281,14 @@ class StalpiAssist:
                 callback=self.run_deschideri_model,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/4.png')),
+                enabled_flag=False
+            ),
+            self.add_action(
+                "Generare linie ajutatoare",
+                text=self.tr(u'Generare linie ajutatoare pentru offset'),
+                callback=self.generate_helper_line,
+                parent=self.iface.mainWindow(),
+                icon_path= str(self.plugin_path('icons/offset.png')),
                 enabled_flag=False
             ),
             self.add_action(
@@ -598,7 +611,7 @@ class StalpiAssist:
                 if orig_renderer is not None:
                     permanent_layer.setRenderer(orig_renderer.clone())
                 else:
-                    print(f"Warning: No renderer found for {layer_name}.")
+                    QgsMessageLog.logMessage(f"Warning: No renderer found for {layer_name}.", level=Qgis.Warning)
 
                 # Clone labeling if enabled and available
                 if original_layer.labelsEnabled() and original_layer.labeling() is not None:
@@ -1128,6 +1141,319 @@ class StalpiAssist:
             scr_file.write("\n".join(scr_stlp_data))  # Join with newline without extra at the end
 
         QMessageBox.information(self.iface.mainWindow(), "Export Completed", f"SCR_STLP data exported to {scr_file_path} successfully!")
+
+    def cleanup_temp_layers(self, layer_name: str):
+        """Remove layers by name if present."""
+        proj = QgsProject.instance()
+        layers = proj.mapLayersByName(layer_name)
+        if layers:
+            proj.removeMapLayers([l.id() for l in layers])
+
+    def _joinstyle_miter(self):
+        """Best-effort retrieval of a MITER join style across QGIS versions."""
+        for path in (
+            (Qgis, "JoinStyle", "Miter"),
+            (Qgis, "GeometryOperationJoinStyle", "Miter"),
+            (Qgis, "MiterJoin", None),
+            (Qgis, "JoinStyleMiter", None),
+        ):
+            obj, *names = path
+            try:
+                v = obj
+                for n in names:
+                    if n is None:
+                        break
+                    v = getattr(v, n)
+                return v
+            except Exception:
+                continue
+        # last resort
+        try:
+            return Qgis.JoinStyle.Miter
+        except Exception:
+            return 1
+
+    def _m_to_mu_factor(self, layer):
+        return QgsUnitTypes.fromUnitToUnitFactor(QgsUnitTypes.DistanceMeters, layer.crs().mapUnits())
+
+    def _mu_to_m_factor(self, layer):
+        f = self._m_to_mu_factor(layer)
+        return 1.0 / f if f else 0.0
+
+    # -------------------- NEW AND MUCH MORE ROBUST MERGE FUNCTION --------------------
+    # This function replaces the old `_safe_unary_line_merge`.
+    # It uses processing algorithms for a guaranteed snap-and-merge result.
+    def _robust_merge_and_dissolve(self, geoms, cluster_id, snap_tolerance_mu, log_tag):
+        """
+        Robustly merges a list of line geometries by first snapping them together
+        and then dissolving them into single, continuous lines.
+        """
+        if not geoms:
+            return []
+
+        # 1. Create a temporary layer from the geometries in this cluster
+        temp_layer = QgsVectorLayer("LineString?crs=EPSG:3857", f"temp_cluster_{cluster_id}", "memory")
+        pr = temp_layer.dataProvider()
+        pr.addAttributes([QgsField("cluster", QVariant.Int)])
+        temp_layer.updateFields()
+
+        with edit(temp_layer):
+            for geom in geoms:
+                if geom and not geom.isEmpty():
+                    feat = QgsFeature(temp_layer.fields())
+                    feat.setGeometry(geom)
+                    feat.setAttribute("cluster", 1) # Assign all to the same group for dissolving
+                    pr.addFeature(feat)
+
+        if temp_layer.featureCount() == 0:
+            return []
+
+        # 2. Snap geometries together to close small gaps
+        try:
+            snapped = processing.run("native:snapgeometries", {
+                'INPUT': temp_layer,
+                'REFERENCE_LAYER': temp_layer,
+                'TOLERANCE': snap_tolerance_mu,
+                'BEHAVIOR': 2,  # Snap to anchor and vertices
+                'OUTPUT': 'memory:'
+            })
+            snapped_layer = snapped['OUTPUT']
+        except Exception as e:
+            QgsMessageLog.logMessage(f"  -> Cluster {cluster_id}: Snap algorithm failed: {e}. Skipping.", log_tag, Qgis.Critical)
+            return []
+
+        # 3. Dissolve the snapped geometries to merge them into single features
+        try:
+            dissolved = processing.run("native:dissolve", {
+                'INPUT': snapped_layer,
+                'FIELD': ['cluster'], # Dissolve all features together
+                'OUTPUT': 'memory:'
+            })
+            dissolved_layer = dissolved['OUTPUT']
+        except Exception as e:
+            QgsMessageLog.logMessage(f"  -> Cluster {cluster_id}: Dissolve algorithm failed: {e}. Skipping.", log_tag, Qgis.Critical)
+            return []
+
+        # 4. Extract the final, merged geometries
+        final_geoms = []
+        for f in dissolved_layer.getFeatures():
+            g = f.geometry()
+            # The result of dissolve can be a MultiLineString, so we split it back to single lines
+            if QgsWkbTypes.isMultiType(g.wkbType()):
+                final_geoms.extend(g.asGeometryCollection())
+            else:
+                final_geoms.append(g)
+
+        QgsMessageLog.logMessage(f"  -> Cluster {cluster_id}: Robustly merged {len(geoms)} segments into {len(final_geoms)} continuous lines.", log_tag, Qgis.Info)
+        return final_geoms
+    # ---------------------------------------------------------------------------------
+
+    def _post_process_offset(self, geom: QgsGeometry) -> QgsGeometry:
+        """
+        Fixes disjointed offsets from acute concave angles by extending lines to their intersection.
+        """
+        # If the geometry is simple (not multipart), it's a valid offset, so return it as is.
+        if not QgsWkbTypes.isMultiType(geom.wkbType()):
+            return geom
+
+        parts = geom.asGeometryCollection()
+        # This logic is specifically for fixing the case where an offset breaks into two lines.
+        if len(parts) != 2:
+            return geom
+
+        line1, line2 = parts[0], parts[1]
+
+        # Calculate the intersection point of the two lines (as if they were infinite)
+        intersection_point = line1.intersection(line2)
+
+        # If they don't intersect (e.g., they are parallel), we can't fix it.
+        if not intersection_point or intersection_point.isEmpty():
+            return geom
+
+        # Find the endpoints of the two lines that are "dangling" in the middle
+        p1_start, p1_end = line1.vertexAt(0), line1.vertexAt(len(line1.vertices()) - 1)
+        p2_start, p2_end = line2.vertexAt(0), line2.vertexAt(len(line2.vertices()) - 1)
+        
+        # Create a list of endpoints and their squared distances to find the two closest ones
+        endpoints = [(p1_start, p2_start), (p1_start, p2_end), (p1_end, p2_start), (p1_end, p2_end)]
+        distances = [p1.sqrDist(p2) for p1, p2 in endpoints]
+        
+        # Find the pair of endpoints that are closest to each other - these are the ones to replace
+        min_dist_index = distances.index(min(distances))
+        closest_pair = endpoints[min_dist_index]
+
+        # Determine the "fixed" points that are not part of the dangling pair
+        fixed_point1 = p1_end if closest_pair[0].equals(p1_start) else p1_start
+        fixed_point2 = p2_end if closest_pair[1].equals(p2_start) else p2_start
+        
+        # Create a new, single, continuous line string from the fixed points to the intersection
+        new_line = QgsLineString([fixed_point1, intersection_point.asPoint(), fixed_point2])
+        
+        return QgsGeometry(new_line)
+
+    def generate_helper_line(self):
+        """
+        Generate helper offset lines along *overlapping* portions of a line layer.
+        - Detects **partial** overlaps via self-intersection.
+        - Clusters all touching/overlapping segments.
+        - **Robustly snaps and dissolves** clusters into continuous lines.
+        - Groups by unique overlap segment and counts **distinct original features**.
+        - Offsets the **merged overlap segment** itself, spaced symmetrically with SHARP corners.
+        """
+        log_tag = "HelperLineDebug"
+        QgsMessageLog.logMessage("--- Starting Helper Line Generation (v4 - Sharp Corners) ---", log_tag, Qgis.Info)
+
+        # --- PARAMETERS ---
+        original_source_layer_name = "TRONSON_JT"
+        output_layer_name = "linie_aj"
+        half_span_m = 3.0
+        snap_tolerance_m = 0.01  # Snap features within 1cm of each other. CRUCIAL for gluing!
+        n_segs = 1               # Use 1 for sharp corners, >1 for rounded corners.
+        miter_limit = 5            # Controls how long sharp corners can get before being cut off.
+        # ------------------
+
+        proj = QgsProject.instance()
+
+        self.cleanup_temp_layers(output_layer_name)
+
+        src_list = proj.mapLayersByName(original_source_layer_name)
+        if not src_list:
+            QMessageBox.warning(None, "Eroare", f"Nu am găsit stratul „{original_source_layer_name}”.")
+            return
+        src_layer = src_list[0]
+        
+        m_to_mu = self._m_to_mu_factor(src_layer)
+        mu_to_m = self._mu_to_m_factor(src_layer)
+        snap_tolerance_mu = snap_tolerance_m * m_to_mu
+
+        # Step 1: Prepare source layer (No changes here)
+        drop_mz = processing.run("native:dropmzvalues", {"INPUT": src_layer, "OUTPUT": "memory:"})
+        layer2d = drop_mz["OUTPUT"]
+        srcid_field = "__srcfid__"
+        with edit(layer2d):
+            if srcid_field not in [f.name() for f in layer2d.fields()]:
+                layer2d.addAttribute(QgsField(srcid_field, QVariant.LongLong))
+                for f in layer2d.getFeatures():
+                    layer2d.changeAttributeValue(f.id(), layer2d.fields().indexOf(srcid_field), int(f.id()))
+                layer2d.updateFields()
+
+        # Step 2: Self-intersection & Filtering (No changes here)
+        try:
+            inter = processing.run("native:intersection", { "INPUT": layer2d, "OVERLAY": layer2d, "INPUT_FIELDS": [srcid_field], "OVERLAY_FIELDS": [srcid_field], "OUTPUT": "memory:", })
+            inter_layer = inter["OUTPUT"]
+        except Exception as e:
+            QMessageBox.critical(None, "Processing Error", f"Algoritmul 'Intersection' a eșuat.\n\nError: {e}")
+            return
+        fld_names = [f.name() for f in inter_layer.fields()]
+        try:
+            idx_a = fld_names.index(srcid_field)
+            idx_b = [i for i, n in enumerate(fld_names) if n.startswith(srcid_field)][1]
+        except IndexError:
+            QMessageBox.critical(None, "Logic Error", "Could not find two source ID fields in intersection result.")
+            return
+        line_parts = []
+        for f in inter_layer.getFeatures():
+            g = f.geometry()
+            if not g or g.isEmpty() or QgsWkbTypes.geometryType(g.wkbType()) != QgsWkbTypes.LineGeometry: continue
+            a, b = f[idx_a], f[idx_b]
+            if a is None or b is None or int(a) == int(b): continue
+            parts = g.asGeometryCollection() if QgsWkbTypes.isMultiType(g.wkbType()) else [g]
+            for p in parts:
+                if p and not p.isEmpty() and QgsWkbTypes.geometryType(p.wkbType()) == QgsWkbTypes.LineGeometry:
+                    line_parts.append((p, int(a), int(b)))
+
+        # Step 3: Clustering and Robust Merging (No changes here)
+        if not line_parts:
+            QMessageBox.information(None, "Info", f"Nu s-au găsit segmente suprapuse în „{original_source_layer_name}”.")
+            return
+        s_feats, s_data, s_index = [], [], QgsSpatialIndex()
+        for i, (p, a, b) in enumerate(line_parts):
+            feat = QgsFeature(i); feat.setGeometry(p); s_feats.append(feat)
+            s_data.append({"geom": p, "participants": {a, b}}); s_index.insertFeature(feat)
+        parent = list(range(len(s_feats)))
+        def find_set(v):
+            if v == parent[v]: return v
+            parent[v] = find_set(parent[v]); return parent[v]
+        def unite_sets(a, b):
+            a, b = find_set(a), find_set(b)
+            if a != b: parent[b] = a
+        for i, feat in enumerate(s_feats):
+            geom_i = feat.geometry()
+            for j in s_index.intersects(geom_i.boundingBox()):
+                if i >= j: continue
+                if geom_i.touches(s_feats[j].geometry()) or geom_i.intersects(s_feats[j].geometry()):
+                    unite_sets(i, j)
+        clusters = {}
+        for i in range(len(s_feats)):
+            root = find_set(i)
+            if root not in clusters: clusters[root] = {"geoms": [], "participants": set()}
+            clusters[root]["geoms"].append(s_data[i]["geom"])
+            clusters[root]["participants"].update(s_data[i]["participants"])
+        QgsMessageLog.logMessage(f"[Step 3] Grouped {len(line_parts)} segments into {len(clusters)} spatial clusters.", log_tag, Qgis.Info)
+        groups = []
+        for cluster_id, cluster_data in clusters.items():
+            if len(cluster_data["participants"]) > 1:
+                merged_geoms = self._robust_merge_and_dissolve(cluster_data["geoms"], cluster_id, snap_tolerance_mu, log_tag)
+                for geom in merged_geoms:
+                    if geom and not geom.isEmpty():
+                        groups.append({"geom": geom, "participants": cluster_data["participants"]})
+        QgsMessageLog.logMessage(f"[Step 3] Merged clusters into {len(groups)} final groups (with >1 participant).", log_tag, Qgis.Info)
+
+        if not groups:
+            QMessageBox.information(None, "Info", "Nu s-au găsit segmente suprapuse care să implice mai multe tronsoane diferite.")
+            return
+
+        # Step 4: Prepare destination layer (No changes here)
+        dst = QgsVectorLayer(f"MultiLineString?crs={src_layer.crs().authid()}", output_layer_name, "memory")
+        pr = dst.dataProvider()
+        pr.addAttributes([QgsField("src_fid", QVariant.LongLong), QgsField("offset_m", QVariant.Double), QgsField("group_id", QVariant.LongLong), QgsField("n_group", QVariant.Int)])
+        dst.updateFields()
+        proj.addMapLayer(dst)
+
+        # Step 5: Write offsets with SHARP corners
+        created = 0
+        js_miter = self._joinstyle_miter() # Use miter style
+        half_span_mu = half_span_m * m_to_mu
+
+        with edit(dst):
+            for gid, rec in enumerate(groups, start=1):
+                geom = rec["geom"]
+                participants = sorted(list(rec["participants"]))
+                n = len(participants)
+                if n < 2: continue
+                QgsMessageLog.logMessage(f"[Step 5] Processing group {gid}/{len(groups)} with {n} participants.", log_tag, Qgis.Info)
+                
+                offsets_mu = [0.0] if n == 1 else [(-half_span_mu + i * ((2 * half_span_mu) / (n - 1))) for i in range(n)]
+
+                for src_id, dist_mu in zip(participants, offsets_mu):
+                    try:
+                        # Use n_segs=1 and the miter join style for sharp corners
+                        off = geom.offsetCurve(dist_mu, n_segs, js_miter, miter_limit)
+                        if not off or off.isEmpty(): continue
+                        
+                        # <<< ADD THIS LINE: Post-process the geometry to fix broken inner corners >>>
+                        off = self._post_process_offset(off)
+
+                        nf = QgsFeature(dst.fields())
+                        nf.setGeometry(off)
+                        nf.setAttributes([int(src_id), float(dist_mu * mu_to_m), int(gid), int(n)])
+                        dst.addFeature(nf)
+                        created += 1
+                    except Exception as e:
+                        QgsMessageLog.logMessage(f"  -> Offset CRASHED for participant {src_id}. Error: {e}", log_tag, Qgis.Critical)
+
+        dst.updateExtents()
+        QgsMessageLog.logMessage(f"--- Finished. Total features created: {created} ---", log_tag, Qgis.Info)
+
+        if created == 0:
+            QMessageBox.information(None, "Info", "Proces finalizat, dar nu au fost generate linii-ajutor. Verificați panoul de mesaje (Log Messages) pentru detalii.")
+        else:
+            QMessageBox.information(None, "Gata", f"Am generat {created} linii-ajutor în „{output_layer_name}” (fan ±{half_span_m} m).")
+
+
+
+
+
 
     def run_tronsoane_duble_model(self):
         """Run TRONSOANE DUBLE ACTUALIZARE model with a scratch layer and saved copy."""
