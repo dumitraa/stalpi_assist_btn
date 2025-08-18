@@ -1361,6 +1361,7 @@ class StalpiAssist:
             for p in parts:
                 if p and not p.isEmpty() and QgsWkbTypes.geometryType(p.wkbType()) == QgsWkbTypes.LineGeometry:
                     line_parts.append((p, int(a), int(b)))
+                    QgsMessageLog.logMessage(f"[Step 2] Found overlapping segment: {int(a)} <-> {int(b)}", log_tag, Qgis.Info)
 
         # Step 3: Clustering and Robust Merging (No changes here)
         if not line_parts:
@@ -1379,10 +1380,17 @@ class StalpiAssist:
             if a != b: parent[b] = a
         for i, feat in enumerate(s_feats):
             geom_i = feat.geometry()
+            Pi = s_data[i]["participants"]  # frozenset({a,b})
             for j in s_index.intersects(geom_i.boundingBox()):
-                if i >= j: continue
-                if geom_i.touches(s_feats[j].geometry()) or geom_i.intersects(s_feats[j].geometry()):
+                if i >= j:
+                    continue
+                geom_j = s_feats[j].geometry()
+                Pj = s_data[j]["participants"]
+                if Pi != Pj:
+                    continue  # keep A–B separate from C–D
+                if geom_i.touches(geom_j) or geom_i.intersects(geom_j):
                     unite_sets(i, j)
+
         clusters = {}
         for i in range(len(s_feats)):
             root = find_set(i)
