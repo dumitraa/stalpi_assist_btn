@@ -640,7 +640,8 @@ class StalpiAssist:
         judete_map = {
             "Buzău": "BZ",
             "Brăila": "BR",
-            "Vrancea": "VR"
+            "Vrancea": "VR",
+            "Prahova": "PH"
         }
         judete_list = list(judete_map.keys())
 
