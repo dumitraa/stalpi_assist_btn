@@ -1626,8 +1626,21 @@ class StalpiAssist:
             color = QColor(unique_colors[i])
 
             settings = QgsPalLayerSettings()
-            
-            settings.fieldName = "Descrierea BDI"
+
+
+            if layer_name == "TRONSON MACHETA":
+                if not self.pt_name:
+                    self.pt_name = self.helper.get_project_name()
+                    
+                expression = f'''
+                '{self.pt_name} / ' + "Descrierea BDI"
+                '''
+                
+                settings.fieldName = expression
+                settings.isExpression = True
+
+            else:
+                settings.fieldName = "Descrierea BDI"
                 
             settings.enabled = True
 
