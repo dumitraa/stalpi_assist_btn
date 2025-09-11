@@ -91,10 +91,32 @@ class IgeaStalpParser:
         self.vector_layer = vector_layer
         self.stalpi: List[StalpJT] = []
         self.helper = HelperBase()
+        concat_id_linie_jt = lambda st: ", ".join(
+            filter(
+                None,
+                [
+                    st.id_linie_jt_1,
+                    st.id_linie_jt_2,
+                    st.id_linie_jt_3,
+                    st.id_linie_jt_4,
+                    st.id_linie_jt_5,
+                    st.id_linie_jt_6,
+                    st.id_linie_jt_7,
+                ]
+            )
+        ) if any([
+            st.id_linie_jt_1,
+            st.id_linie_jt_2,
+            st.id_linie_jt_3,
+            st.id_linie_jt_4,
+            st.id_linie_jt_5,
+            st.id_linie_jt_6,
+            st.id_linie_jt_7,
+        ]) else ""
 
         self.mapping = {
             "Nr crt": "nr_crt",
-            "ID_linie JT": "id_linie_jt",
+            "ID_linie JT": concat_id_linie_jt,
             "Denumire": "denum",
             "Descrierea BDI": ("STP.", " ", "denum", "str", ),
             "Numar inscriptionat pe stalp": "nr_ins_stp",

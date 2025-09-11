@@ -324,8 +324,8 @@ class StalpiAssist:
                 enabled_flag=False
             ),
             self.add_action(
-                "Export DXF",
-                text=self.tr(u'Export DXF'),
+                "Export DXF + KMZ",
+                text=self.tr(u'Export DXF + KMZ'),
                 callback=self.export_dxf_kml,
                 parent=self.iface.mainWindow(),
                 icon_path= str(self.plugin_path('icons/export.png')),
@@ -1597,6 +1597,8 @@ class StalpiAssist:
         
     def export_dxf_kml(self):
         self.stylize_layers()
+        self.export_to_dxf()
+        self.export_to_kml()
 
     def stylize_layers(self):
         layers = [
@@ -1733,8 +1735,6 @@ class StalpiAssist:
         self.iface.mapCanvas().refresh()
         self.iface.mapCanvas().update()
         QMessageBox.information(self.iface.mainWindow(), "Layer Styling", "Layers styled successfully!")
-
-        self.export_to_dxf()
 
 
 
