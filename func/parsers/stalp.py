@@ -91,32 +91,20 @@ class IgeaStalpParser:
         self.vector_layer = vector_layer
         self.stalpi: List[StalpJT] = []
         self.helper = HelperBase()
-        concat_id_linie_jt = lambda st: ", ".join(
-            filter(
-                None,
-                [
-                    st.id_linie_jt_1,
-                    st.id_linie_jt_2,
-                    st.id_linie_jt_3,
-                    st.id_linie_jt_4,
-                    st.id_linie_jt_5,
-                    st.id_linie_jt_6,
-                    st.id_linie_jt_7,
-                ]
-            )
-        ) if any([
-            st.id_linie_jt_1,
-            st.id_linie_jt_2,
-            st.id_linie_jt_3,
-            st.id_linie_jt_4,
-            st.id_linie_jt_5,
-            st.id_linie_jt_6,
-            st.id_linie_jt_7,
-        ]) else ""
+        
+        def concat_id_linie_jt(st):
+            vals = [
+                st.id_linie_jt_1, st.id_linie_jt_2, st.id_linie_jt_3,
+                st.id_linie_jt_4, st.id_linie_jt_5, st.id_linie_jt_6, st.id_linie_jt_7
+            ]
+            # None/빈문자 제거 + 문자열화
+            vals = [str(v).strip() for v in vals if v is not None and str(v).strip() != ""]
+            return ", ".join(vals)
+
 
         self.mapping = {
             "Nr crt": "nr_crt",
-            "ID_linie JT": concat_id_linie_jt,
+            "ID_linie JT": lambda st: concat_id_linie_jt(st),
             "Denumire": "denum",
             "Descrierea BDI": ("STP.", " ", "denum", "str", ),
             "Numar inscriptionat pe stalp": "nr_ins_stp",
@@ -169,6 +157,7 @@ class IgeaStalpParser:
         }
         
         # self.qgis_mapping = ["CLASS_ID", "ID_BDI", "NR_CRT", "ID_LINIE_JT", "NR_CRT_LINIE_JT_1", "ID_LINIE_JT_2", "NR_CRT_LINIE_JT_2", "ID_LINIE_JT_3", "NR_CRT_LINIE_JT_3", "ID_LINIE_JT_4", "NR_CRT_LINIE_JT_4", "ID_LINIE_JT_5", "NR_CRT_LINIE_JT_5", "ID_LINIE_JT_6", "NR_CRT_LINIE_JT_6", "ID_LINIE_JT_7", "NR_CRT_LINIE_JT_7", "DENUM", "NR_INS_STP", "DESC_DET", "PROP", "DET_PROP", "TIP_ZONA_AMP", "JUD", "PRIM", "LOC", "TIP_STR", "STR", "TIP_CIR", "TIP_MAT", "DESC_CTG_MT_JT", "NR_CIR", "UZURA_STP", "TIP_FUND", "OBS_FUND", "ANC", "OBS_ANC", "ADAOS", "OBS_ADAOS", "FIB_OPT", "NR_CIR_FO", "PROP_FO", "LTC", "NR_CIR_LTC", "PROP_LTC", "CATV", "NR_CIR_CAT", "PROP_CATV", "ECHIP_COM", "DISP_CUIB_PAS", "NR_CONS_C2S", "NR_CONS_C4S", "NR_CONS_C2T", "NR_CONS_C4T", "NR_CONS_C2BR", "NR_CONS_C4BR", "TIP_LEG_JT", "PRIZA_LEG_PAM", "CORP_IL", "CUTIE_SEL", "GEO", "LAT", "LONG", "ALT", "X_STEREO_70", "Y_STEREO_70", "Z_STEREO_70", "SURSA_COORD", "DATA_COORD", "OBS", "IMG_FILE_1", "IMG_FILE_2", "IMG_FILE_3", "IMG_FILE_4"]
+            
             
             
     def parse(self):
