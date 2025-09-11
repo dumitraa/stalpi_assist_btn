@@ -1640,11 +1640,12 @@ class StalpiAssist:
 
 
             if layer_name == "TRONSON MACHETA":
-                if not self.pt_name:
-                    self.pt_name = self.helper.get_project_name()
-                    
+
                 expression = f'''
-                '{self.pt_name} / ' + "Descrierea BDI"
+                attribute(
+                    get_feature('LINIE_JT', 'DENUM', "Locatia"),
+                    'ID_BDI'
+                ) || ' / ' || "Descrierea BDI"
                 '''
                 
                 settings.fieldName = expression
